@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView, Platform, BackHandler } from "react-native";
+import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView} from "react-native";
 import { useState } from "react";
 import LottieView from "lottie-react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
