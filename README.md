@@ -1,6 +1,6 @@
 # Hidden Rolls
 
-Hidden Rolls is a tabletop RPG companion application designed to work alongside a camera-equipped dice tray, allowing Dungeon Master as well as Players to make hidden dice rolls while displaying the results privately on a mobile device.
+Hidden Rolls is a tabletop RPG companion application designed to work alongside a camera-equipped dice tray, allowing Dungeon Master as well as Players to make hidden dice rolls while displaying the results privately on a mobile device.Hidden Rolls is a tabletop RPG companion application designed to work alongside a camera-equipped dice tray, allowing Dungeon Masters and players to view physical dice rolls privately on a mobile device.
 
 ## Features
 
