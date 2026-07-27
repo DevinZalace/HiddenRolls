@@ -8,6 +8,7 @@ import { useFonts } from "expo-font";
 import { Cinzel_700Bold } from "@expo-google-fonts/cinzel";
 import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { enableScreens } from "react-native-screens";
+
 enableScreens(true);
 const Stack = createNativeStackNavigator();
 
@@ -124,7 +125,7 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
       <View style={styles.videoArea}>
         <Text style={styles.videoPlaceholderTitle}>{t.camerafeed}</Text>
         <Text style={styles.videoPlaceholderBody}>
-          (Feed will appear here once we connect the camera protocol.)
+          (Feed will appear here once I connect the camera protocol.)
         </Text>
       </View>
 
@@ -278,7 +279,7 @@ const t = copy[language];
           {"\n"}
           • Use at your own risk. No warranties.
           {"\n\n"}
-          (We’ll replace this placeholder with your real terms later.)
+          (Will replace this placeholder with real terms later.)
         </Text>
       </ScrollView>
 
