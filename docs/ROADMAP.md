@@ -81,3 +81,6 @@ maintain Hidden Rolls.
 
 ---
 
+## Milestone 
+
+v1.0: First Complete Working Release, all issues resolves.
