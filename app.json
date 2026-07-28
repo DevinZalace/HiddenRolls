@@ -2,6 +2,7 @@
   "expo": {
     "backgroundColor": "#000000",
     "name": "HiddenRolls",
+    "description": "Expo configuration for the Hidden Rolls mobile experience.",
     "slug": "HiddenRolls",
     "version": "1.0.0",
     "orientation": "portrait",

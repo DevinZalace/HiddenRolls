@@ -9,9 +9,11 @@ import { Cinzel_700Bold } from "@expo-google-fonts/cinzel";
 import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { enableScreens } from "react-native-screens";
 
+// Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
 const Stack = createNativeStackNavigator();
 
+// Setup screen for choosing language and viewing connection guidance.
 function SetupScreen({ navigation, t, language, setLanguage}) {
   return (
     <View style={styles.setupRoot}>
@@ -85,6 +87,7 @@ function SetupScreen({ navigation, t, language, setLanguage}) {
   );
 }
 
+// Connection flow screen shown while the device is attempting to link.
 function ConnectingScreen({ navigation, t }) {
   return (
     <View style={styles.connectingRoot}>
@@ -117,6 +120,7 @@ function ConnectingScreen({ navigation, t }) {
   );
 }
 
+// Main live view screen with camera placeholder and simple device controls.
 function LiveScreen({ navigation, t, lightOn, setLightOn }) {
   return (
     <View style={styles.liveRoot}>
@@ -153,6 +157,7 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
 
 
 export default function App() {
+  // App-level state for onboarding, terms acceptance, and simple UI toggles.
   const [showIntro, setShowIntro] = useState(true);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -219,7 +224,7 @@ const copy = {
 
 const t = copy[language];
 
-  // Show something while fonts load (prevents a blank screen)
+  // Render a lightweight loading screen until custom fonts are ready.
   if (!fontsLoaded) {
     return (
       <View style={styles.loading}>
@@ -246,6 +251,7 @@ const t = copy[language];
 
 
   return (
+  // Main navigation container for the app flow and screen transitions.
   <NavigationContainer theme={DarkTheme}>
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right", presentation: "card", contentStyle: { backgroundColor: "#000" } }}>
       <Stack.Screen name="Landing">
@@ -357,6 +363,7 @@ const t = copy[language];
 
 }
 
+// Shared visual styles for the app experience.
 const styles = StyleSheet.create({
   loading: {
     flex: 1,

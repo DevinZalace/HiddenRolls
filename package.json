@@ -1,5 +1,6 @@
 {
   "name": "hiddenrolls",
+  "description": "React Native app package for Hidden Rolls.",
   "license": "0BSD",
   "version": "1.0.0",
   "main": "index.js",
