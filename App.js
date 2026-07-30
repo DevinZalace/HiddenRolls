@@ -10,13 +10,21 @@ import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { enableScreens } from "react-native-screens";
 import { WebView } from "react-native-webview";
 
+import {
+  CAMERA_CONFIG,
+  buildCameraStreamUrl,
+} from "./config/camera";
+
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
+
 const Stack = createNativeStackNavigator();
 
-// Temporary hard-coded stream endpoint for local development.
-// This should be replaced with runtime discovery once device pairing is implemented.
-const ESP32_STREAM_URL = "http://192.168.0.84:81/stream";
+// Uses the known working camera address for now.
+// Runtime discovery will replace this default later.
+const ESP32_STREAM_URL = buildCameraStreamUrl(
+  CAMERA_CONFIG.mdnsHost
+);
 
 // Setup screen for selecting language and guiding the user through device connection.
 function SetupScreen({ navigation, t, language, setLanguage}) {
