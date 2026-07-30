@@ -17,7 +17,9 @@ export const CAMERA_CONFIG = {
     controlPath: "/control",
 
     lightVariable: "led_intensity",
-    lightOnIntensity: 64,
+    lightMinimumIntensity: 0,
+    lightMaximumIntensity: 255,
+    lightDefaultIntensity: 64,
 };
 
 /**
