@@ -270,14 +270,22 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
     }
 
     if (result.connected) {
-      consecutiveFailures = 0;
-    } else {
-      consecutiveFailures += 1;
+  consecutiveFailures = 0;
 
-      if (consecutiveFailures >= 2) {
-        setStreamError(true);
-      }
-    }
+  const reportedLightIntensity = Number(
+    result.cameraStatus?.led_intensity
+  );
+
+  if (Number.isFinite(reportedLightIntensity)) {
+    setLightOn(reportedLightIntensity > 0);
+  }
+} else {
+  consecutiveFailures += 1;
+
+  if (consecutiveFailures >= 2) {
+    setStreamError(true);
+  }
+}
 
     nextCheckTimer = setTimeout(checkCameraHealth, 3000);
   }
