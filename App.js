@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView} from "react-native";
-import { useEffect, useState } from "react";
+import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView, Alert} from "react-native";
+import { useEffect, useRef, useState } from "react";
 import LottieView from "lottie-react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -9,12 +9,17 @@ import { Cinzel_700Bold } from "@expo-google-fonts/cinzel";
 import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { enableScreens } from "react-native-screens";
 import { WebView } from "react-native-webview";
+import Slider from "@react-native-community/slider";
 
 import {
+  CAMERA_CONFIG,
   buildCameraStreamUrl,
 } from "./config/camera";
 
-import { checkCameraConnection } from "./services/cameraService";
+import {
+  checkCameraConnection,
+  setCameraLightIntensity,
+} from "./services/cameraService";
 
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
@@ -216,6 +221,107 @@ function ConnectingScreen({ navigation, t }) {
 function LiveScreen({ navigation, t, lightOn, setLightOn }) {
   const [streamError, setStreamError] = useState(false);
   const [streamReloadKey, setStreamReloadKey] = useState(0);
+  const [lightIsChanging, setLightIsChanging] = useState(false);
+  const [lightIntensity, setLightIntensity] = useState(
+  CAMERA_CONFIG.lightMinimumIntensity
+);
+
+const [sliderValue, setSliderValue] = useState(
+  CAMERA_CONFIG.lightMinimumIntensity
+);
+
+const [lastNonZeroIntensity, setLastNonZeroIntensity] = useState(
+  CAMERA_CONFIG.lightDefaultIntensity
+);
+
+const isAdjustingLight = useRef(false);
+
+async function toggleCameraLight() {
+  if (lightIsChanging) {
+    return;
+  }
+
+  const requestedIntensity = lightOn
+    ? CAMERA_CONFIG.lightMinimumIntensity
+    : lastNonZeroIntensity;
+
+  setLightIsChanging(true);
+
+  try {
+    const result = await setCameraLightIntensity(
+      requestedIntensity
+    );
+
+    if (!result.success) {
+      Alert.alert(
+        t.lightControlErrorTitle,
+        t.lightControlErrorBody
+      );
+
+      return;
+    }
+
+    setLightIntensity(result.intensity);
+    setSliderValue(result.intensity);
+    setLightOn(result.intensity > 0);
+
+    if (result.intensity > 0) {
+      setLastNonZeroIntensity(result.intensity);
+    }
+  } catch (error) {
+    console.error("Unexpected light control error:", error);
+
+    Alert.alert(
+      t.lightControlErrorTitle,
+      t.lightControlErrorBody
+    );
+  } finally {
+    setLightIsChanging(false);
+  }
+}
+
+async function updateLightBrightness(value) {
+  const requestedIntensity = Math.round(value);
+
+  isAdjustingLight.current = false;
+  setLightIsChanging(true);
+
+  try {
+    const result = await setCameraLightIntensity(
+      requestedIntensity
+    );
+
+    if (!result.success) {
+      setSliderValue(lightIntensity);
+
+      Alert.alert(
+        t.lightControlErrorTitle,
+        t.lightControlErrorBody
+      );
+
+      return;
+    }
+
+    setLightIntensity(result.intensity);
+    setSliderValue(result.intensity);
+    setLightOn(result.intensity > 0);
+
+    if (result.intensity > 0) {
+      setLastNonZeroIntensity(result.intensity);
+    }
+  } catch (error) {
+    console.error("Unexpected brightness control error:", error);
+
+    setSliderValue(lightIntensity);
+
+    Alert.alert(
+      t.lightControlErrorTitle,
+      t.lightControlErrorBody
+    );
+  } finally {
+    setLightIsChanging(false);
+  }
+}
 
   useEffect(() => {
   let isScreenActive = true;
@@ -232,14 +338,39 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
     }
 
     if (result.connected) {
-      consecutiveFailures = 0;
-    } else {
-      consecutiveFailures += 1;
+  consecutiveFailures = 0;
 
-      if (consecutiveFailures >= 2) {
-        setStreamError(true);
-      }
-    }
+  const reportedLightIntensity = Number(
+  result.cameraStatus?.led_intensity
+);
+
+if (Number.isFinite(reportedLightIntensity)) {
+  const normalizedIntensity = Math.min(
+    CAMERA_CONFIG.lightMaximumIntensity,
+    Math.max(
+      CAMERA_CONFIG.lightMinimumIntensity,
+      Math.round(reportedLightIntensity)
+    )
+  );
+
+  setLightIntensity(normalizedIntensity);
+  setLightOn(normalizedIntensity > 0);
+
+  if (!isAdjustingLight.current) {
+    setSliderValue(normalizedIntensity);
+  }
+
+  if (normalizedIntensity > 0) {
+    setLastNonZeroIntensity(normalizedIntensity);
+  }
+}
+} else {
+  consecutiveFailures += 1;
+
+  if (consecutiveFailures >= 2) {
+    setStreamError(true);
+  }
+}
 
     nextCheckTimer = setTimeout(checkCameraHealth, 3000);
   }
@@ -266,6 +397,10 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
   setStreamError(false);
   setStreamReloadKey((currentKey) => currentKey + 1);
 }
+
+const brightnessPercent = Math.round(
+  (sliderValue / CAMERA_CONFIG.lightMaximumIntensity) * 100
+);
 
   return (
     <View style={styles.liveRoot}>
@@ -310,25 +445,51 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
         )}
       </View>
 
+      <View style={styles.lightSliderPanel}>
+        <View style={styles.lightSliderHeader}>
+          <Text style={styles.lightSliderLabel}>
+            {t.brightness}
+          </Text>
+
+          <Text style={styles.lightSliderValue}>
+            {brightnessPercent}%
+          </Text>
+        </View>
+
+        <Slider
+          style={styles.lightSlider}
+          minimumValue={CAMERA_CONFIG.lightMinimumIntensity}
+          maximumValue={CAMERA_CONFIG.lightMaximumIntensity}
+          step={1}
+          value={sliderValue}
+          disabled={lightIsChanging || streamError}
+          onSlidingStart={() => {
+            isAdjustingLight.current = true;
+          }}
+          onValueChange={(value) => {
+            setSliderValue(value);
+          }}
+          onSlidingComplete={updateLightBrightness}
+          minimumTrackTintColor="#00e426"
+          maximumTrackTintColor="#5a5a5a"
+          thumbTintColor="#ffffff"
+        />
+      </View>
+
       <View style={styles.controlsBar}>
         <Pressable
+          disabled={lightIsChanging}
           style={[
             styles.controlBtn,
             lightOn ? styles.controlBtnOn : null,
+            lightIsChanging ? styles.controlBtnDisabled : null,
           ]}
-          onPress={() => setLightOn((value) => !value)}
+          onPress={toggleCameraLight}
         >
           <Text style={styles.controlBtnText}>
-            {t.light}: {lightOn ? t.on : t.off}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.controlBtn}
-          onPress={() => console.log("Log pressed")}
-        >
-          <Text style={styles.controlBtnText}>
-            {t.log}
+            {lightIsChanging
+              ? t.lightUpdating
+              : `${t.light}: ${lightOn ? t.on : t.off}`}
           </Text>
         </Pressable>
 
@@ -383,7 +544,6 @@ const copy = {
     light: "Light",
     on: "On",
     off: "Off",
-    log: "Log",
     camerafeed: "Camera Feed",
     dontagree: "Don't Agree",
     agree: "Agree",
@@ -399,6 +559,11 @@ const copy = {
     connectionLostTitle: "Camera Feed Unavailable",
     connectionLost:
     "The live feed could not be loaded. Check the tray's power and Wi-Fi connection, then try again.",
+    lightUpdating: "Updating...",
+    lightControlErrorTitle: "Light Control Failed",
+    lightControlErrorBody:
+    "HiddenRolls could not reach the tray light. Check the tray's power and Wi-Fi connection, then try again.",
+    brightness: "Brightness",
   },
   es: {
     setupTitle: "Configuración",
@@ -418,7 +583,6 @@ const copy = {
     light: "Luz",
     on: "Activa",
     off: "Inactiva",
-    log: "Registro",
     camerafeed: "Video de la cámara",
     dontagree: "No Aceptar",
     agree: "Aceptar",
@@ -435,6 +599,11 @@ const copy = {
     connectionLostTitle: "Transmisión No Disponible",
     connectionLost:
     "No se pudo cargar la transmisión en vivo. Revisa la alimentación y la conexión Wi-Fi de la bandeja, e inténtalo de nuevo.",
+    lightUpdating: "Actualizando...",
+    lightControlErrorTitle: "Error al Controlar la Luz",
+    lightControlErrorBody:
+    "HiddenRolls no pudo comunicarse con la luz de la bandeja. Revisa la alimentación y la conexión Wi-Fi, e inténtalo de nuevo.",
+    brightness: "Brillo",
   },
 };
 
@@ -922,5 +1091,36 @@ streamRetryBtn: {
   paddingVertical: 10,
   paddingHorizontal: 22,
 },
+controlBtnDisabled: {
+  opacity: 0.55,
+},
+lightSliderPanel: {
+  paddingHorizontal: 22,
+  paddingTop: 12,
+  paddingBottom: 8,
+  backgroundColor: "#171717",
+},
 
+lightSliderHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+lightSliderLabel: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 15,
+},
+
+lightSliderValue: {
+  color: "#00e426",
+  fontFamily: "Inter_400Regular",
+  fontSize: 15,
+},
+
+lightSlider: {
+  width: "100%",
+  height: 38,
+},
 });

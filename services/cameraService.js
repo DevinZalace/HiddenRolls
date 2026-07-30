@@ -1,4 +1,6 @@
 import {
+  CAMERA_CONFIG,
+  buildCameraControlUrl,
   buildCameraStatusUrl,
 } from "../config/camera";
 
@@ -67,4 +69,102 @@ export async function checkCameraConnection({
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Sets the HiddenRolls camera light to a specific intensity.
+ *
+ * The ESP32 accepts whole-number values from 0 through 255.
+ */
+export async function setCameraLightIntensity(
+  intensity,
+  {
+    host,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = {}
+) {
+  const numericIntensity = Number(intensity);
+
+  if (!Number.isFinite(numericIntensity)) {
+    return {
+      success: false,
+      reason: "invalid-intensity",
+    };
+  }
+
+  const normalizedIntensity = Math.min(
+    CAMERA_CONFIG.lightMaximumIntensity,
+    Math.max(
+      CAMERA_CONFIG.lightMinimumIntensity,
+      Math.round(numericIntensity)
+    )
+  );
+
+  const controller = new AbortController();
+
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const controlUrl = buildCameraControlUrl(
+      CAMERA_CONFIG.lightVariable,
+      normalizedIntensity,
+      host
+    );
+
+    const response = await fetch(controlUrl, {
+      method: "GET",
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        reason: "http-error",
+        statusCode: response.status,
+      };
+    }
+
+    return {
+      success: true,
+      enabled:
+        normalizedIntensity >
+        CAMERA_CONFIG.lightMinimumIntensity,
+      intensity: normalizedIntensity,
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return {
+        success: false,
+        reason: "timeout",
+      };
+    }
+
+    return {
+      success: false,
+      reason: "network-error",
+      error,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Turns the light on at its default intensity or completely off.
+ *
+ * This wrapper preserves the simple on/off interface while the underlying
+ * service supports the full brightness range.
+ */
+export async function setCameraLight(
+  enabled,
+  options = {}
+) {
+  const intensity = enabled
+    ? CAMERA_CONFIG.lightDefaultIntensity
+    : CAMERA_CONFIG.lightMinimumIntensity;
+
+  return setCameraLightIntensity(intensity, options);
 }
