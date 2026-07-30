@@ -4,14 +4,20 @@
 // configuration out of App.js does not change the app's behavior yet.
 
 export const CAMERA_CONFIG = {
-  defaultHost: "hiddenrolls.local",
-  fallbackHost: "192.168.0.84",
+    defaultHost: "hiddenrolls.local",
+    fallbackHost: "192.168.0.84",
 
-  statusPort: 80,
-  statusPath: "/status",
+    statusPort: 80,
+    statusPath: "/status",
 
-  streamPort: 81,
-  streamPath: "/stream",
+    streamPort: 81,
+    streamPath: "/stream",
+
+    controlPort: 80,
+    controlPath: "/control",
+
+    lightVariable: "led_intensity",
+    lightOnIntensity: 64,
 };
 
 /**
@@ -38,4 +44,25 @@ export function buildCameraStatusUrl(
       : `:${CAMERA_CONFIG.statusPort}`;
 
   return `http://${host}${port}${CAMERA_CONFIG.statusPath}`;
+}
+
+/**
+ * Builds an ESP32 camera-control URL.
+ */
+export function buildCameraControlUrl(
+  variable,
+  value,
+  host = CAMERA_CONFIG.defaultHost
+) {
+  const port =
+    CAMERA_CONFIG.controlPort === 80
+      ? ""
+      : `:${CAMERA_CONFIG.controlPort}`;
+
+  const query = new URLSearchParams({
+    var: variable,
+    val: String(value),
+  });
+
+  return `http://${host}${port}${CAMERA_CONFIG.controlPath}?${query.toString()}`;
 }

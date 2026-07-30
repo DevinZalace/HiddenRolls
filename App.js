@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView} from "react-native";
+import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView, Alert} from "react-native";
 import { useEffect, useState } from "react";
 import LottieView from "lottie-react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
@@ -14,7 +14,10 @@ import {
   buildCameraStreamUrl,
 } from "./config/camera";
 
-import { checkCameraConnection } from "./services/cameraService";
+import {
+  checkCameraConnection,
+  setCameraLight,
+} from "./services/cameraService";
 
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
@@ -216,6 +219,41 @@ function ConnectingScreen({ navigation, t }) {
 function LiveScreen({ navigation, t, lightOn, setLightOn }) {
   const [streamError, setStreamError] = useState(false);
   const [streamReloadKey, setStreamReloadKey] = useState(0);
+  const [lightIsChanging, setLightIsChanging] = useState(false);
+
+  async function toggleCameraLight() {
+  if (lightIsChanging) {
+    return;
+  }
+
+  const requestedState = !lightOn;
+
+  setLightIsChanging(true);
+
+  try {
+    const result = await setCameraLight(requestedState);
+
+    if (!result.success) {
+      Alert.alert(
+        t.lightControlErrorTitle,
+        t.lightControlErrorBody
+      );
+
+      return;
+    }
+
+    setLightOn(requestedState);
+  } catch (error) {
+    console.error("Unexpected light control error:", error);
+
+    Alert.alert(
+      t.lightControlErrorTitle,
+      t.lightControlErrorBody
+    );
+  } finally {
+    setLightIsChanging(false);
+  }
+}
 
   useEffect(() => {
   let isScreenActive = true;
@@ -312,23 +350,18 @@ function LiveScreen({ navigation, t, lightOn, setLightOn }) {
 
       <View style={styles.controlsBar}>
         <Pressable
+          disabled={lightIsChanging}
           style={[
             styles.controlBtn,
             lightOn ? styles.controlBtnOn : null,
+            lightIsChanging ? styles.controlBtnDisabled : null,
           ]}
-          onPress={() => setLightOn((value) => !value)}
+          onPress={toggleCameraLight}
         >
           <Text style={styles.controlBtnText}>
-            {t.light}: {lightOn ? t.on : t.off}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.controlBtn}
-          onPress={() => console.log("Log pressed")}
-        >
-          <Text style={styles.controlBtnText}>
-            {t.log}
+            {lightIsChanging
+              ? t.lightUpdating
+              : `${t.light}: ${lightOn ? t.on : t.off}`}
           </Text>
         </Pressable>
 
@@ -383,7 +416,6 @@ const copy = {
     light: "Light",
     on: "On",
     off: "Off",
-    log: "Log",
     camerafeed: "Camera Feed",
     dontagree: "Don't Agree",
     agree: "Agree",
@@ -399,6 +431,11 @@ const copy = {
     connectionLostTitle: "Camera Feed Unavailable",
     connectionLost:
     "The live feed could not be loaded. Check the tray's power and Wi-Fi connection, then try again.",
+    lightUpdating: "Updating...",
+    lightControlErrorTitle: "Light Control Failed",
+    lightControlErrorBody:
+    "HiddenRolls could not reach the tray light. Check the tray's power and Wi-Fi connection, then try again.",
+  
   },
   es: {
     setupTitle: "Configuración",
@@ -418,7 +455,6 @@ const copy = {
     light: "Luz",
     on: "Activa",
     off: "Inactiva",
-    log: "Registro",
     camerafeed: "Video de la cámara",
     dontagree: "No Aceptar",
     agree: "Aceptar",
@@ -435,6 +471,11 @@ const copy = {
     connectionLostTitle: "Transmisión No Disponible",
     connectionLost:
     "No se pudo cargar la transmisión en vivo. Revisa la alimentación y la conexión Wi-Fi de la bandeja, e inténtalo de nuevo.",
+    lightUpdating: "Actualizando...",
+    lightControlErrorTitle: "Error al Controlar la Luz",
+    lightControlErrorBody:
+    "HiddenRolls no pudo comunicarse con la luz de la bandeja. Revisa la alimentación y la conexión Wi-Fi, e inténtalo de nuevo.",
+  
   },
 };
 
@@ -922,5 +963,7 @@ streamRetryBtn: {
   paddingVertical: 10,
   paddingHorizontal: 22,
 },
-
+controlBtnDisabled: {
+  opacity: 0.55,
+},
 });
