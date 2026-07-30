@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView} from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LottieView from "lottie-react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -11,9 +11,10 @@ import { enableScreens } from "react-native-screens";
 import { WebView } from "react-native-webview";
 
 import {
-  CAMERA_CONFIG,
   buildCameraStreamUrl,
 } from "./config/camera";
+
+import { checkCameraConnection } from "./services/cameraService";
 
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
@@ -22,9 +23,7 @@ const Stack = createNativeStackNavigator();
 
 // Uses the known working camera address for now.
 // Runtime discovery will replace this default later.
-const ESP32_STREAM_URL = buildCameraStreamUrl(
-  CAMERA_CONFIG.mdnsHost
-);
+const ESP32_STREAM_URL = buildCameraStreamUrl();
 
 // Setup screen for selecting language and guiding the user through device connection.
 function SetupScreen({ navigation, t, language, setLanguage}) {
@@ -100,33 +99,87 @@ function SetupScreen({ navigation, t, language, setLanguage}) {
   );
 }
 
-// Transitional screen shown while the app is attempting to establish a connection.
+// Checks for the physical HiddenRolls camera before opening the live view.
 function ConnectingScreen({ navigation, t }) {
+  const [connectionState, setConnectionState] = useState("checking");
+  const [failureReason, setFailureReason] = useState(null);
+  const [attemptNumber, setAttemptNumber] = useState(0);
+
+  useEffect(() => {
+    let isScreenActive = true;
+
+    async function attemptConnection() {
+      setConnectionState("checking");
+      setFailureReason(null);
+
+      const result = await checkCameraConnection();
+
+      // Do not update this screen if the user already navigated away.
+      if (!isScreenActive) {
+        return;
+      }
+
+      if (result.connected) {
+        setConnectionState("connected");
+        navigation.replace("Live");
+        return;
+      }
+
+      setConnectionState("failed");
+      setFailureReason(result.reason);
+    }
+
+    attemptConnection();
+
+    return () => {
+      isScreenActive = false;
+    };
+  }, [attemptNumber, navigation]);
+
+  const isChecking = connectionState === "checking";
+
+  const failureMessage =
+    failureReason === "timeout"
+      ? t.connectionTimeout
+      : t.connectionFailed;
+
   return (
     <View style={styles.connectingRoot}>
       <StatusBar style="light" />
+
       <View style={styles.connectingCard}>
-        <Text style={styles.connectingTitle}>{t.connecting}</Text>
-        <Text style={styles.connectingBody}>{t.connectingbody}</Text>
+        <Text style={styles.connectingTitle}>
+          {isChecking ? t.connecting : t.connectionFailedTitle}
+        </Text>
+
+        <Text style={styles.connectingBody}>
+          {isChecking ? t.connectingbody : failureMessage}
+        </Text>
 
         <View style={{ height: 18 }} />
 
-        <View style={styles.spinnerWrap}>
-          <ActivityIndicator size="large" color="#00e426" />
-        </View>
+        {isChecking && (
+          <View style={styles.spinnerWrap}>
+            <ActivityIndicator size="large" color="#00e426" />
+          </View>
+        )}
+
+        {connectionState === "failed" && (
+          <Pressable
+            style={styles.primaryBtn}
+            onPress={() => setAttemptNumber((current) => current + 1)}
+          >
+            <Text style={styles.primaryBtnText}>{t.retry}</Text>
+          </Pressable>
+        )}
 
         <View style={{ height: 18 }} />
 
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.primaryBtnText}>{t.back}</Text>
-        </Pressable>
-
-        {/* TEMP button until real connection exists */}
         <Pressable
           style={styles.primaryBtn}
-          onPress={() => navigation.replace("Live")}
+          onPress={() => navigation.goBack()}
         >
-          <Text style={styles.primaryBtnText}>{t.continue}</Text>
+          <Text style={styles.primaryBtnText}>{t.back}</Text>
         </Pressable>
       </View>
     </View>
@@ -217,6 +270,14 @@ const copy = {
     dontagree: "Don't Agree",
     agree: "Agree",
     termsAndConditions: "Terms and Conditions",
+    connecting: "Connecting...",
+    connectingbody: "Searching for your HiddenRolls tray on the local network.",
+    connectionFailedTitle: "Tray Not Found",
+    connectionFailed:
+    "HiddenRolls could not find the tray. Make sure it is powered on and connected to the same Wi-Fi network.",
+    connectionTimeout:
+    "The tray did not answer in time. Check its power and Wi-Fi connection, then try again.",
+    retry: "Try Again",
   },
   es: {
     setupTitle: "Configuración",
@@ -241,6 +302,15 @@ const copy = {
     dontagree: "No Aceptar",
     agree: "Aceptar",
     termsAndConditions: "Términos y Condiciones",
+    connecting: "Conectando...",
+    connectingbody:
+    "Buscando tu bandeja HiddenRolls en la red local.",
+    connectionFailedTitle: "Bandeja No Encontrada",
+    connectionFailed:
+    "HiddenRolls no pudo encontrar la bandeja. Asegúrate de que esté encendida y conectada a la misma red Wi-Fi.",
+    connectionTimeout:
+    "La bandeja no respondió a tiempo. Revisa la alimentación y la conexión Wi-Fi, e inténtalo de nuevo.",
+    retry: "Intentar de Nuevo",
   },
 };
 
