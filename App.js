@@ -109,25 +109,50 @@ function ConnectingScreen({ navigation, t }) {
     let isScreenActive = true;
 
     async function attemptConnection() {
-      setConnectionState("checking");
-      setFailureReason(null);
+  const maximumAttempts = 3;
+  const retryDelayMs = 1500;
 
-      const result = await checkCameraConnection();
+  setConnectionState("checking");
+  setFailureReason(null);
 
-      // Do not update this screen if the user already navigated away.
+  let lastFailureReason = "network-error";
+
+  for (
+    let currentAttempt = 1;
+    currentAttempt <= maximumAttempts;
+    currentAttempt += 1
+  ) {
+    const result = await checkCameraConnection();
+
+    if (!isScreenActive) {
+      return;
+    }
+
+    if (result.connected) {
+      setConnectionState("connected");
+      navigation.replace("Live");
+      return;
+    }
+
+    lastFailureReason = result.reason;
+
+    const hasAnotherAttempt =
+      currentAttempt < maximumAttempts;
+
+    if (hasAnotherAttempt) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, retryDelayMs);
+      });
+
       if (!isScreenActive) {
         return;
       }
-
-      if (result.connected) {
-        setConnectionState("connected");
-        navigation.replace("Live");
-        return;
-      }
-
-      setConnectionState("failed");
-      setFailureReason(result.reason);
     }
+  }
+
+  setConnectionState("failed");
+  setFailureReason(lastFailureReason);
+}
 
     attemptConnection();
 
