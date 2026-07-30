@@ -8,12 +8,17 @@ import { useFonts } from "expo-font";
 import { Cinzel_700Bold } from "@expo-google-fonts/cinzel";
 import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { enableScreens } from "react-native-screens";
+import { WebView } from "react-native-webview";
 
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
 const Stack = createNativeStackNavigator();
 
-// Setup screen for choosing language and viewing connection guidance.
+// Temporary hard-coded stream endpoint for local development.
+// This should be replaced with runtime discovery once device pairing is implemented.
+const ESP32_STREAM_URL = "http://192.168.0.84:81/stream";
+
+// Setup screen for selecting language and guiding the user through device connection.
 function SetupScreen({ navigation, t, language, setLanguage}) {
   return (
     <View style={styles.setupRoot}>
@@ -87,7 +92,7 @@ function SetupScreen({ navigation, t, language, setLanguage}) {
   );
 }
 
-// Connection flow screen shown while the device is attempting to link.
+// Transitional screen shown while the app is attempting to establish a connection.
 function ConnectingScreen({ navigation, t }) {
   return (
     <View style={styles.connectingRoot}>
@@ -120,17 +125,24 @@ function ConnectingScreen({ navigation, t }) {
   );
 }
 
-// Main live view screen with camera placeholder and simple device controls.
+// Primary live-view screen that embeds the camera stream and basic controls.
 function LiveScreen({ navigation, t, lightOn, setLightOn }) {
   return (
     <View style={styles.liveRoot}>
       <StatusBar style="light" />
 
       <View style={styles.videoArea}>
-        <Text style={styles.videoPlaceholderTitle}>{t.camerafeed}</Text>
-        <Text style={styles.videoPlaceholderBody}>
-          (Feed will appear here once I connect the camera protocol.)
-        </Text>
+        <WebView
+          source={{ uri: ESP32_STREAM_URL }}
+          originWhitelist={["http://*"]}
+          javaScriptEnabled={false}
+          domStorageEnabled={false}
+          cacheEnabled={false}
+          onShouldStartLoadWithRequest={(request) =>
+            request.url === ESP32_STREAM_URL || request.url === "about:blank"
+          }
+          style={styles.cameraStream}
+        />
       </View>
 
       <View style={styles.controlsBar}>
@@ -170,7 +182,9 @@ export default function App() {
   });
   const [language, setLanguage] = useState("en"); // en | es (we can add more)
   const [lightOn, setLightOn] = useState(false);
+  const [cameraIp, setCameraIp] = useState("");
 
+// Localized copy used by the onboarding and connection experience.
 const copy = {
   en: {
     setupTitle: "Setup",
@@ -251,7 +265,7 @@ const t = copy[language];
 
 
   return (
-  // Main navigation container for the app flow and screen transitions.
+  // Main navigation shell for the intro, setup, connection, and live-view screens.
   <NavigationContainer theme={DarkTheme}>
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "slide_from_right", presentation: "card", contentStyle: { backgroundColor: "#000" } }}>
       <Stack.Screen name="Landing">
@@ -551,9 +565,13 @@ videoArea: {
   borderWidth: 1,
   borderColor: "rgba(255,255,255,0.12)",
   backgroundColor: "rgba(255,255,255,0.04)",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 18,
+  overflow: "hidden",
+},
+
+cameraStream: {
+  flex: 1,
+  width: "100%",
+  backgroundColor: "#000",
 },
 
 videoPlaceholderTitle: {

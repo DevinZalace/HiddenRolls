@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+firmware/CameraWebServer1/secrets.h
 
 # Expo
 .expo/
