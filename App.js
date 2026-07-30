@@ -212,46 +212,139 @@ function ConnectingScreen({ navigation, t }) {
 }
 
 // Primary live-view screen that embeds the camera stream and basic controls.
+// Primary live-view screen that embeds the camera stream and basic controls.
 function LiveScreen({ navigation, t, lightOn, setLightOn }) {
+  const [streamError, setStreamError] = useState(false);
+  const [streamReloadKey, setStreamReloadKey] = useState(0);
+
+  useEffect(() => {
+  let isScreenActive = true;
+  let nextCheckTimer = null;
+  let consecutiveFailures = 0;
+
+  async function checkCameraHealth() {
+    const result = await checkCameraConnection({
+      timeoutMs: 2000,
+    });
+
+    if (!isScreenActive) {
+      return;
+    }
+
+    if (result.connected) {
+      consecutiveFailures = 0;
+    } else {
+      consecutiveFailures += 1;
+
+      if (consecutiveFailures >= 2) {
+        setStreamError(true);
+      }
+    }
+
+    nextCheckTimer = setTimeout(checkCameraHealth, 3000);
+  }
+
+  checkCameraHealth();
+
+  return () => {
+    isScreenActive = false;
+
+    if (nextCheckTimer) {
+      clearTimeout(nextCheckTimer);
+    }
+  };
+}, []);
+
+  async function retryStream() {
+  const result = await checkCameraConnection();
+
+  if (!result.connected) {
+    setStreamError(true);
+    return;
+  }
+
+  setStreamError(false);
+  setStreamReloadKey((currentKey) => currentKey + 1);
+}
+
   return (
     <View style={styles.liveRoot}>
       <StatusBar style="light" />
 
       <View style={styles.videoArea}>
         <WebView
+          key={streamReloadKey}
           source={{ uri: ESP32_STREAM_URL }}
           originWhitelist={["http://*"]}
           javaScriptEnabled={false}
           domStorageEnabled={false}
           cacheEnabled={false}
           onShouldStartLoadWithRequest={(request) =>
-            request.url === ESP32_STREAM_URL || request.url === "about:blank"
+            request.url === ESP32_STREAM_URL ||
+            request.url === "about:blank"
           }
+          onError={() => setStreamError(true)}
+          onHttpError={() => setStreamError(true)}
           style={styles.cameraStream}
         />
+
+        {streamError && (
+          <View style={styles.streamErrorOverlay}>
+            <Text style={styles.streamErrorTitle}>
+              {t.connectionLostTitle}
+            </Text>
+
+            <Text style={styles.streamErrorBody}>
+              {t.connectionLost}
+            </Text>
+
+            <Pressable
+              style={[styles.controlBtn, styles.streamRetryBtn]}
+              onPress={retryStream}
+            >
+              <Text style={styles.controlBtnText}>
+                {t.retry}
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.controlsBar}>
         <Pressable
-          style={[styles.controlBtn, lightOn ? styles.controlBtnOn : null]}
-          onPress={() => setLightOn((v) => !v)}
+          style={[
+            styles.controlBtn,
+            lightOn ? styles.controlBtnOn : null,
+          ]}
+          onPress={() => setLightOn((value) => !value)}
         >
           <Text style={styles.controlBtnText}>
             {t.light}: {lightOn ? t.on : t.off}
           </Text>
         </Pressable>
 
-        <Pressable style={styles.controlBtn} onPress={() => console.log("Log pressed")}>
-          <Text style={styles.controlBtnText}>{t.log}</Text>
+        <Pressable
+          style={styles.controlBtn}
+          onPress={() => console.log("Log pressed")}
+        >
+          <Text style={styles.controlBtnText}>
+            {t.log}
+          </Text>
         </Pressable>
 
-        <Pressable style={styles.controlBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.controlBtnText}>{t.back}</Text>
+        <Pressable
+          style={styles.controlBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.controlBtnText}>
+            {t.back}
+          </Text>
         </Pressable>
       </View>
     </View>
   );
 }
+
 
 
 export default function App() {
@@ -303,6 +396,9 @@ const copy = {
     connectionTimeout:
     "The tray did not answer in time. Check its power and Wi-Fi connection, then try again.",
     retry: "Try Again",
+    connectionLostTitle: "Camera Feed Unavailable",
+    connectionLost:
+    "The live feed could not be loaded. Check the tray's power and Wi-Fi connection, then try again.",
   },
   es: {
     setupTitle: "Configuración",
@@ -336,6 +432,9 @@ const copy = {
     connectionTimeout:
     "La bandeja no respondió a tiempo. Revisa la alimentación y la conexión Wi-Fi, e inténtalo de nuevo.",
     retry: "Intentar de Nuevo",
+    connectionLostTitle: "Transmisión No Disponible",
+    connectionLost:
+    "No se pudo cargar la transmisión en vivo. Revisa la alimentación y la conexión Wi-Fi de la bandeja, e inténtalo de nuevo.",
   },
 };
 
@@ -669,6 +768,7 @@ videoArea: {
   borderColor: "rgba(255,255,255,0.12)",
   backgroundColor: "rgba(255,255,255,0.04)",
   overflow: "hidden",
+  position: "relative",
 },
 
 cameraStream: {
@@ -790,6 +890,37 @@ modalBtnText: {
   fontFamily: "Inter_400Regular",
   fontSize: 14,
 },
+streamErrorOverlay: {
+  ...StyleSheet.absoluteFillObject,
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 24,
+  backgroundColor: "#111111",
+},
 
+streamErrorTitle: {
+  color: "#ffffff",
+  fontSize: 22,
+  fontFamily: "Cinzel_700Bold",
+  textAlign: "center",
+  marginBottom: 12,
+},
+
+streamErrorBody: {
+  color: "#d7d7d7",
+  fontSize: 16,
+  fontFamily: "Inter_400Regular",
+  textAlign: "center",
+  lineHeight: 23,
+  marginBottom: 20,
+},
+streamRetryBtn: {
+  flex: 0,
+  alignSelf: "center",
+  minHeight: 0,
+  width: "auto",
+  paddingVertical: 10,
+  paddingHorizontal: 22,
+},
 
 });
