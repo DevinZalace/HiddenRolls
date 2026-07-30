@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View, Text, Pressable, ImageBackground, ActivityIndicator, Modal, ScrollView} from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LottieView from "lottie-react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -10,13 +10,20 @@ import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { enableScreens } from "react-native-screens";
 import { WebView } from "react-native-webview";
 
+import {
+  buildCameraStreamUrl,
+} from "./config/camera";
+
+import { checkCameraConnection } from "./services/cameraService";
+
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
+
 const Stack = createNativeStackNavigator();
 
-// Temporary hard-coded stream endpoint for local development.
-// This should be replaced with runtime discovery once device pairing is implemented.
-const ESP32_STREAM_URL = "http://192.168.0.84:81/stream";
+// Uses the known working camera address for now.
+// Runtime discovery will replace this default later.
+const ESP32_STREAM_URL = buildCameraStreamUrl();
 
 // Setup screen for selecting language and guiding the user through device connection.
 function SetupScreen({ navigation, t, language, setLanguage}) {
@@ -92,33 +99,112 @@ function SetupScreen({ navigation, t, language, setLanguage}) {
   );
 }
 
-// Transitional screen shown while the app is attempting to establish a connection.
+// Checks for the physical HiddenRolls camera before opening the live view.
 function ConnectingScreen({ navigation, t }) {
+  const [connectionState, setConnectionState] = useState("checking");
+  const [failureReason, setFailureReason] = useState(null);
+  const [attemptNumber, setAttemptNumber] = useState(0);
+
+  useEffect(() => {
+    let isScreenActive = true;
+
+    async function attemptConnection() {
+  const maximumAttempts = 3;
+  const retryDelayMs = 1500;
+
+  setConnectionState("checking");
+  setFailureReason(null);
+
+  let lastFailureReason = "network-error";
+
+  for (
+    let currentAttempt = 1;
+    currentAttempt <= maximumAttempts;
+    currentAttempt += 1
+  ) {
+    const result = await checkCameraConnection();
+
+    if (!isScreenActive) {
+      return;
+    }
+
+    if (result.connected) {
+      setConnectionState("connected");
+      navigation.replace("Live");
+      return;
+    }
+
+    lastFailureReason = result.reason;
+
+    const hasAnotherAttempt =
+      currentAttempt < maximumAttempts;
+
+    if (hasAnotherAttempt) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, retryDelayMs);
+      });
+
+      if (!isScreenActive) {
+        return;
+      }
+    }
+  }
+
+  setConnectionState("failed");
+  setFailureReason(lastFailureReason);
+}
+
+    attemptConnection();
+
+    return () => {
+      isScreenActive = false;
+    };
+  }, [attemptNumber, navigation]);
+
+  const isChecking = connectionState === "checking";
+
+  const failureMessage =
+    failureReason === "timeout"
+      ? t.connectionTimeout
+      : t.connectionFailed;
+
   return (
     <View style={styles.connectingRoot}>
       <StatusBar style="light" />
+
       <View style={styles.connectingCard}>
-        <Text style={styles.connectingTitle}>{t.connecting}</Text>
-        <Text style={styles.connectingBody}>{t.connectingbody}</Text>
+        <Text style={styles.connectingTitle}>
+          {isChecking ? t.connecting : t.connectionFailedTitle}
+        </Text>
+
+        <Text style={styles.connectingBody}>
+          {isChecking ? t.connectingbody : failureMessage}
+        </Text>
 
         <View style={{ height: 18 }} />
 
-        <View style={styles.spinnerWrap}>
-          <ActivityIndicator size="large" color="#00e426" />
-        </View>
+        {isChecking && (
+          <View style={styles.spinnerWrap}>
+            <ActivityIndicator size="large" color="#00e426" />
+          </View>
+        )}
+
+        {connectionState === "failed" && (
+          <Pressable
+            style={styles.primaryBtn}
+            onPress={() => setAttemptNumber((current) => current + 1)}
+          >
+            <Text style={styles.primaryBtnText}>{t.retry}</Text>
+          </Pressable>
+        )}
 
         <View style={{ height: 18 }} />
 
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.primaryBtnText}>{t.back}</Text>
-        </Pressable>
-
-        {/* TEMP button until real connection exists */}
         <Pressable
           style={styles.primaryBtn}
-          onPress={() => navigation.replace("Live")}
+          onPress={() => navigation.goBack()}
         >
-          <Text style={styles.primaryBtnText}>{t.continue}</Text>
+          <Text style={styles.primaryBtnText}>{t.back}</Text>
         </Pressable>
       </View>
     </View>
@@ -126,46 +212,139 @@ function ConnectingScreen({ navigation, t }) {
 }
 
 // Primary live-view screen that embeds the camera stream and basic controls.
+// Primary live-view screen that embeds the camera stream and basic controls.
 function LiveScreen({ navigation, t, lightOn, setLightOn }) {
+  const [streamError, setStreamError] = useState(false);
+  const [streamReloadKey, setStreamReloadKey] = useState(0);
+
+  useEffect(() => {
+  let isScreenActive = true;
+  let nextCheckTimer = null;
+  let consecutiveFailures = 0;
+
+  async function checkCameraHealth() {
+    const result = await checkCameraConnection({
+      timeoutMs: 2000,
+    });
+
+    if (!isScreenActive) {
+      return;
+    }
+
+    if (result.connected) {
+      consecutiveFailures = 0;
+    } else {
+      consecutiveFailures += 1;
+
+      if (consecutiveFailures >= 2) {
+        setStreamError(true);
+      }
+    }
+
+    nextCheckTimer = setTimeout(checkCameraHealth, 3000);
+  }
+
+  checkCameraHealth();
+
+  return () => {
+    isScreenActive = false;
+
+    if (nextCheckTimer) {
+      clearTimeout(nextCheckTimer);
+    }
+  };
+}, []);
+
+  async function retryStream() {
+  const result = await checkCameraConnection();
+
+  if (!result.connected) {
+    setStreamError(true);
+    return;
+  }
+
+  setStreamError(false);
+  setStreamReloadKey((currentKey) => currentKey + 1);
+}
+
   return (
     <View style={styles.liveRoot}>
       <StatusBar style="light" />
 
       <View style={styles.videoArea}>
         <WebView
+          key={streamReloadKey}
           source={{ uri: ESP32_STREAM_URL }}
           originWhitelist={["http://*"]}
           javaScriptEnabled={false}
           domStorageEnabled={false}
           cacheEnabled={false}
           onShouldStartLoadWithRequest={(request) =>
-            request.url === ESP32_STREAM_URL || request.url === "about:blank"
+            request.url === ESP32_STREAM_URL ||
+            request.url === "about:blank"
           }
+          onError={() => setStreamError(true)}
+          onHttpError={() => setStreamError(true)}
           style={styles.cameraStream}
         />
+
+        {streamError && (
+          <View style={styles.streamErrorOverlay}>
+            <Text style={styles.streamErrorTitle}>
+              {t.connectionLostTitle}
+            </Text>
+
+            <Text style={styles.streamErrorBody}>
+              {t.connectionLost}
+            </Text>
+
+            <Pressable
+              style={[styles.controlBtn, styles.streamRetryBtn]}
+              onPress={retryStream}
+            >
+              <Text style={styles.controlBtnText}>
+                {t.retry}
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.controlsBar}>
         <Pressable
-          style={[styles.controlBtn, lightOn ? styles.controlBtnOn : null]}
-          onPress={() => setLightOn((v) => !v)}
+          style={[
+            styles.controlBtn,
+            lightOn ? styles.controlBtnOn : null,
+          ]}
+          onPress={() => setLightOn((value) => !value)}
         >
           <Text style={styles.controlBtnText}>
             {t.light}: {lightOn ? t.on : t.off}
           </Text>
         </Pressable>
 
-        <Pressable style={styles.controlBtn} onPress={() => console.log("Log pressed")}>
-          <Text style={styles.controlBtnText}>{t.log}</Text>
+        <Pressable
+          style={styles.controlBtn}
+          onPress={() => console.log("Log pressed")}
+        >
+          <Text style={styles.controlBtnText}>
+            {t.log}
+          </Text>
         </Pressable>
 
-        <Pressable style={styles.controlBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.controlBtnText}>{t.back}</Text>
+        <Pressable
+          style={styles.controlBtn}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.controlBtnText}>
+            {t.back}
+          </Text>
         </Pressable>
       </View>
     </View>
   );
 }
+
 
 
 export default function App() {
@@ -209,6 +388,17 @@ const copy = {
     dontagree: "Don't Agree",
     agree: "Agree",
     termsAndConditions: "Terms and Conditions",
+    connecting: "Connecting...",
+    connectingbody: "Searching for your HiddenRolls tray on the local network.",
+    connectionFailedTitle: "Tray Not Found",
+    connectionFailed:
+    "HiddenRolls could not find the tray. Make sure it is powered on and connected to the same Wi-Fi network.",
+    connectionTimeout:
+    "The tray did not answer in time. Check its power and Wi-Fi connection, then try again.",
+    retry: "Try Again",
+    connectionLostTitle: "Camera Feed Unavailable",
+    connectionLost:
+    "The live feed could not be loaded. Check the tray's power and Wi-Fi connection, then try again.",
   },
   es: {
     setupTitle: "Configuración",
@@ -233,6 +423,18 @@ const copy = {
     dontagree: "No Aceptar",
     agree: "Aceptar",
     termsAndConditions: "Términos y Condiciones",
+    connecting: "Conectando...",
+    connectingbody:
+    "Buscando tu bandeja HiddenRolls en la red local.",
+    connectionFailedTitle: "Bandeja No Encontrada",
+    connectionFailed:
+    "HiddenRolls no pudo encontrar la bandeja. Asegúrate de que esté encendida y conectada a la misma red Wi-Fi.",
+    connectionTimeout:
+    "La bandeja no respondió a tiempo. Revisa la alimentación y la conexión Wi-Fi, e inténtalo de nuevo.",
+    retry: "Intentar de Nuevo",
+    connectionLostTitle: "Transmisión No Disponible",
+    connectionLost:
+    "No se pudo cargar la transmisión en vivo. Revisa la alimentación y la conexión Wi-Fi de la bandeja, e inténtalo de nuevo.",
   },
 };
 
@@ -566,6 +768,7 @@ videoArea: {
   borderColor: "rgba(255,255,255,0.12)",
   backgroundColor: "rgba(255,255,255,0.04)",
   overflow: "hidden",
+  position: "relative",
 },
 
 cameraStream: {
@@ -687,6 +890,37 @@ modalBtnText: {
   fontFamily: "Inter_400Regular",
   fontSize: 14,
 },
+streamErrorOverlay: {
+  ...StyleSheet.absoluteFillObject,
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 24,
+  backgroundColor: "#111111",
+},
 
+streamErrorTitle: {
+  color: "#ffffff",
+  fontSize: 22,
+  fontFamily: "Cinzel_700Bold",
+  textAlign: "center",
+  marginBottom: 12,
+},
+
+streamErrorBody: {
+  color: "#d7d7d7",
+  fontSize: 16,
+  fontFamily: "Inter_400Regular",
+  textAlign: "center",
+  lineHeight: 23,
+  marginBottom: 20,
+},
+streamRetryBtn: {
+  flex: 0,
+  alignSelf: "center",
+  minHeight: 0,
+  width: "auto",
+  paddingVertical: 10,
+  paddingHorizontal: 22,
+},
 
 });
