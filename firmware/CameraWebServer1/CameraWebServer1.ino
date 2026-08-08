@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include "secrets.h"
+#include "tray_config.h"
 
 // ===========================
 // Select camera model in board_config.h
@@ -16,8 +17,8 @@
 // ===========================
 // Enter your WiFi credentials
 // ===========================
-const char *ssid = "Placeholder";
-const char *password = "Placeholder";
+//const char *ssid = "Placeholder";
+//const char *password = "Placeholder";
 
 void startCameraServer();
 void setupLedFlash();
@@ -115,7 +116,7 @@ void setup() {
 
   // Establish the device network connection before bringing up the HTTP
   // services that depend on the camera and Wi-Fi stack.
-  WiFi.setHostname("hiddenrolls");
+  WiFi.setHostname(HR_MDNS_HOSTNAME);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.setSleep(false);
 
@@ -130,13 +131,17 @@ void setup() {
   // Once networking is available, register the camera handlers and expose the
   // device over mDNS so the mobile app can discover it more easily.
   startCameraServer();
-  if (MDNS.begin("hiddenrolls")) {
+  if (MDNS.begin(HR_MDNS_HOSTNAME)) {
   MDNS.addService("http", "tcp", 80);
   MDNS.addService("hiddenrolls", "tcp", 81);
 
-  Serial.println("mDNS responder started");
-  Serial.println("Camera page: http://hiddenrolls.local");
-  Serial.println("Camera stream: http://hiddenrolls.local:81/stream");
+  Serial.print("Camera page: http://");
+  Serial.print(HR_MDNS_HOSTNAME);
+  Serial.println(".local");
+
+  Serial.print("Camera stream: http://");
+  Serial.print(HR_MDNS_HOSTNAME);
+  Serial.println(".local:81/stream");
 } else {
   Serial.println("Error starting mDNS responder");
 }
