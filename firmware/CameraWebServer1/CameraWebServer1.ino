@@ -2,7 +2,8 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <ESPmDNS.h>
-#include "secrets.h"
+#include "tray_config.h"
+#include "WiFiProv.h"
 
 // ===========================
 // Select camera model in board_config.h
@@ -16,16 +17,106 @@
 // ===========================
 // Enter your WiFi credentials
 // ===========================
-const char *ssid = "Placeholder";
-const char *password = "Placeholder";
+//const char *ssid = "Placeholder";
+//const char *password = "Placeholder";
 
 void startCameraServer();
 void setupLedFlash();
+volatile bool provisioningCleanedUp = false;
+volatile bool provisioningStarted = false;
+// Receives provisioning and Wi-Fi events from the Arduino ESP32 framework.
+void onProvisioningEvent(arduino_event_t *event) {
+  switch (event->event_id) {
+    case ARDUINO_EVENT_PROV_START:
+    provisioningStarted = true;
+
+      Serial.print("BLE provisioning started: ");
+      Serial.println(HR_PROV_NAME);
+      break;
+
+    case ARDUINO_EVENT_PROV_CRED_RECV:
+      Serial.println("Wi-Fi credentials received.");
+      break;
+
+    case ARDUINO_EVENT_PROV_CRED_FAIL:
+      Serial.println("Provisioning failed: Wi-Fi connection rejected.");
+      break;
+
+    case ARDUINO_EVENT_PROV_CRED_SUCCESS:
+      Serial.println("Provisioning succeeded.");
+      break;
+
+    case ARDUINO_EVENT_PROV_END:
+      Serial.println("Provisioning service stopped.");
+      break;
+
+    case ARDUINO_EVENT_PROV_DEINIT:
+      provisioningCleanedUp = true;
+      Serial.println("Provisioning resources released.");
+      
+      break;
+
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      Serial.print("Wi-Fi connected. IP address: ");
+      Serial.println(WiFi.localIP());
+      break;
+
+    default:
+      break;
+  }
+}
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+
+  // Keep the Wi-Fi interface in STA mode before starting BLE provisioning so
+  // the provisioning manager can allocate its queues without competing with an
+  // already-initialized camera frame buffer pool.
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true);
+  WiFi.setHostname(HR_MDNS_HOSTNAME);
+  WiFi.setSleep(false);
+
+  // Register before provisioning begins so we can observe every stage.
+  WiFi.onEvent(onProvisioningEvent);
+
+  // Initialize BLE provisioning before the camera starts consuming a large PSRAM
+  // buffer pool. The fixed_queue assert is typically caused by heap pressure
+  // during queue setup, not by a malformed provisioning payload.
+  Serial.println("Starting BLE provisioning...");
+  WiFiProv.beginProvision(
+    NETWORK_PROV_SCHEME_BLE,
+    NETWORK_PROV_SCHEME_HANDLER_FREE_BTDM,
+    NETWORK_PROV_SECURITY_1,
+    HR_PROV_POP,
+    HR_PROV_NAME
+  );
+
+  Serial.println("Waiting for Wi-Fi...");
+
+  while (WiFi.status() != WL_CONNECTED) {
+  delay(250);
+  }
+
+  if (provisioningStarted) {
+    Serial.println(
+      "Wi-Fi connected. Waiting for provisioning cleanup..."
+    );
+
+    while (!provisioningCleanedUp) {
+      delay(50);
+    }
+
+    Serial.println("Provisioning cleanup complete.");
+  } else {
+    Serial.println(
+      "Wi-Fi connected using saved credentials."
+    );
+  }
+
+  Serial.println("Wi-Fi ready.");
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -113,30 +204,20 @@ void setup() {
   setupLedFlash();
 #endif
 
-  // Establish the device network connection before bringing up the HTTP
-  // services that depend on the camera and Wi-Fi stack.
-  WiFi.setHostname("hiddenrolls");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  WiFi.setSleep(false);
-
-  Serial.print("WiFi connecting");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected");
-
   // Once networking is available, register the camera handlers and expose the
   // device over mDNS so the mobile app can discover it more easily.
   startCameraServer();
-  if (MDNS.begin("hiddenrolls")) {
+  if (MDNS.begin(HR_MDNS_HOSTNAME)) {
   MDNS.addService("http", "tcp", 80);
   MDNS.addService("hiddenrolls", "tcp", 81);
 
-  Serial.println("mDNS responder started");
-  Serial.println("Camera page: http://hiddenrolls.local");
-  Serial.println("Camera stream: http://hiddenrolls.local:81/stream");
+  Serial.print("Camera page: http://");
+  Serial.print(HR_MDNS_HOSTNAME);
+  Serial.println(".local");
+
+  Serial.print("Camera stream: http://");
+  Serial.print(HR_MDNS_HOSTNAME);
+  Serial.println(".local:81/stream");
 } else {
   Serial.println("Error starting mDNS responder");
 }
