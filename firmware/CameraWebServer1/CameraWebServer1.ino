@@ -5,6 +5,7 @@
 #include "tray_config.h"
 #include "WiFiProv.h"
 #include "esp_heap_caps.h"
+#include <esp_wifi.h>
 
 // ===========================
 // Select camera model in board_config.h
@@ -77,6 +78,24 @@ void onProvisioningEvent(arduino_event_t *event) {
   }
 }
 
+bool hasSavedWifiCredentials() {
+  wifi_config_t savedConfig = {};
+
+  esp_err_t result =
+      esp_wifi_get_config(WIFI_IF_STA, &savedConfig);
+
+  if (result != ESP_OK) {
+    Serial.printf(
+      "Unable to read saved Wi-Fi configuration: 0x%x\n",
+      result
+    );
+
+    return false;
+  }
+
+  return savedConfig.sta.ssid[0] != '\0';
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -93,11 +112,27 @@ void setup() {
   // Register before provisioning begins so we can observe every stage.
   WiFi.onEvent(onProvisioningEvent);
 
-  // Initialize network provisioning before the camera.
+
+  bool savedCredentialsExist = hasSavedWifiCredentials();
+// Initialize network provisioning before the camera.
   //
   // BLE provisioning requires internal memory, while camera initialization also
   // needs a sufficiently large contiguous DMA-capable allocation. Provisioning
   // must therefore finish and release its resources before esp_camera_init().
+if (savedCredentialsExist) {
+  networkStartupMode =
+      NetworkStartupMode::SavedCredentials;
+
+  Serial.println(
+    "Saved Wi-Fi credentials found. Connecting..."
+  );
+
+  WiFi.begin();
+} else {
+  Serial.println(
+    "No saved Wi-Fi credentials. Starting setup mode."
+  );
+
   WiFiProv.beginProvision(
     NETWORK_PROV_SCHEME_BLE,
     NETWORK_PROV_SCHEME_HANDLER_FREE_BTDM,
@@ -105,13 +140,45 @@ void setup() {
     HR_PROV_POP,
     HR_PROV_NAME
   );
+}
 
   Serial.println("Waiting for Wi-Fi...");
 
-  while (WiFi.status() != WL_CONNECTED) {
-  delay(250);
-  } 
+  if (
+    networkStartupMode ==
+    NetworkStartupMode::SavedCredentials
+  ) {
+    const unsigned long wifiTimeoutMs = 30000;
+    const unsigned long connectionStartedAt = millis();
 
+    while (WiFi.status() != WL_CONNECTED) {
+      if (
+        millis() - connectionStartedAt >= wifiTimeoutMs
+      ) {
+        Serial.println(
+          "Saved Wi-Fi network unavailable."
+        );
+
+        // Recovery provisioning 
+        break;
+      }
+
+      delay(250);
+    }
+  } else {
+    // Initial provisioning has no arbitrary timeout.
+    // The customer may still be completing setup in the app.
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(250);
+    }
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+      Serial.println(
+        "Recovery provisioning is required."
+      );
+
+      return;
+    }
   if (
       networkStartupMode == NetworkStartupMode::Provisioning ||
       networkStartupMode == NetworkStartupMode::ProvisioningCleanupComplete) {
