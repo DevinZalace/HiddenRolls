@@ -4,7 +4,7 @@
 // configuration out of App.js does not change the app's behavior yet.
 
 export const CAMERA_CONFIG = {
-    defaultHost: "hiddenrolls.local",
+    defaultHost: "hiddenrolls-dev001.local",
     fallbackHost: "192.168.0.84",
 
     statusPort: 80,

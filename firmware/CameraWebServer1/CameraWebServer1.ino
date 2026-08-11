@@ -4,32 +4,42 @@
 #include <ESPmDNS.h>
 #include "tray_config.h"
 #include "WiFiProv.h"
+#include "esp_heap_caps.h"
+#include <esp_wifi.h>
 
 // ===========================
 // Select camera model in board_config.h
 // ===========================
 #include "board_config.h"
 
-// Main startup sequence for the Hidden Rolls camera firmware.
-// The board initializes the camera sensor, connects to Wi-Fi, and exposes
-// the web endpoints used by the companion app.
+// Main startup sequence for the Hidden Rolls firmware.
+//
+// Networking and any required BLE provisioning are completed before camera
+// initialization so provisioning resources can be released before the camera
+// requests its DMA-capable memory.
+//
+// After Wi-Fi is ready, the firmware initializes the camera and exposes the
+// HTTP and mDNS services used by the Hidden Rolls companion app.
 
-// ===========================
-// Enter your WiFi credentials
-// ===========================
-//const char *ssid = "Placeholder";
-//const char *password = "Placeholder";
 
 void startCameraServer();
 void setupLedFlash();
-volatile bool provisioningCleanedUp = false;
-volatile bool provisioningStarted = false;
+
+enum class NetworkStartupMode {
+  Unknown,
+  SavedCredentials,
+  Provisioning,
+  ProvisioningCleanupComplete
+};
+
+NetworkStartupMode networkStartupMode =
+    NetworkStartupMode::Unknown;
 // Receives provisioning and Wi-Fi events from the Arduino ESP32 framework.
 void onProvisioningEvent(arduino_event_t *event) {
   switch (event->event_id) {
-    case ARDUINO_EVENT_PROV_START:
-    provisioningStarted = true;
 
+    case ARDUINO_EVENT_PROV_START:
+      networkStartupMode = NetworkStartupMode::Provisioning;
       Serial.print("BLE provisioning started: ");
       Serial.println(HR_PROV_NAME);
       break;
@@ -50,20 +60,40 @@ void onProvisioningEvent(arduino_event_t *event) {
       Serial.println("Provisioning service stopped.");
       break;
 
-    case ARDUINO_EVENT_PROV_DEINIT:
-      provisioningCleanedUp = true;
-      Serial.println("Provisioning resources released.");
-      
-      break;
-
     case ARDUINO_EVENT_WIFI_STA_GOT_IP:
       Serial.print("Wi-Fi connected. IP address: ");
       Serial.println(WiFi.localIP());
       break;
 
+    case ARDUINO_EVENT_PROV_DEINIT:
+      if (networkStartupMode == NetworkStartupMode::Provisioning) {
+        networkStartupMode =
+            NetworkStartupMode::ProvisioningCleanupComplete;
+      }
+      Serial.println("Provisioning resources released.");
+      break;
+
     default:
       break;
   }
+}
+
+bool hasSavedWifiCredentials() {
+  wifi_config_t savedConfig = {};
+
+  esp_err_t result =
+      esp_wifi_get_config(WIFI_IF_STA, &savedConfig);
+
+  if (result != ESP_OK) {
+    Serial.printf(
+      "Unable to read saved Wi-Fi configuration: 0x%x\n",
+      result
+    );
+
+    return false;
+  }
+
+  return savedConfig.sta.ssid[0] != '\0';
 }
 
 void setup() {
@@ -75,17 +105,34 @@ void setup() {
   // the provisioning manager can allocate its queues without competing with an
   // already-initialized camera frame buffer pool.
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect(true);
   WiFi.setHostname(HR_MDNS_HOSTNAME);
   WiFi.setSleep(false);
+  Serial.println("Initializing network...");
 
   // Register before provisioning begins so we can observe every stage.
   WiFi.onEvent(onProvisioningEvent);
 
-  // Initialize BLE provisioning before the camera starts consuming a large PSRAM
-  // buffer pool. The fixed_queue assert is typically caused by heap pressure
-  // during queue setup, not by a malformed provisioning payload.
-  Serial.println("Starting BLE provisioning...");
+
+  bool savedCredentialsExist = hasSavedWifiCredentials();
+// Initialize network provisioning before the camera.
+  //
+  // BLE provisioning requires internal memory, while camera initialization also
+  // needs a sufficiently large contiguous DMA-capable allocation. Provisioning
+  // must therefore finish and release its resources before esp_camera_init().
+if (savedCredentialsExist) {
+  networkStartupMode =
+      NetworkStartupMode::SavedCredentials;
+
+  Serial.println(
+    "Saved Wi-Fi credentials found. Connecting..."
+  );
+
+  WiFi.begin();
+} else {
+  Serial.println(
+    "No saved Wi-Fi credentials. Starting setup mode."
+  );
+
   WiFiProv.beginProvision(
     NETWORK_PROV_SCHEME_BLE,
     NETWORK_PROV_SCHEME_HANDLER_FREE_BTDM,
@@ -93,27 +140,70 @@ void setup() {
     HR_PROV_POP,
     HR_PROV_NAME
   );
+}
 
   Serial.println("Waiting for Wi-Fi...");
 
-  while (WiFi.status() != WL_CONNECTED) {
-  delay(250);
+  if (
+    networkStartupMode ==
+    NetworkStartupMode::SavedCredentials
+  ) {
+    const unsigned long wifiTimeoutMs = 30000;
+    const unsigned long connectionStartedAt = millis();
+
+    while (WiFi.status() != WL_CONNECTED) {
+      if (
+        millis() - connectionStartedAt >= wifiTimeoutMs
+      ) {
+        Serial.println(
+          "Saved Wi-Fi network unavailable."
+        );
+
+        // Recovery provisioning 
+        break;
+      }
+
+      delay(250);
+    }
+  } else {
+    // Initial provisioning has no arbitrary timeout.
+    // The customer may still be completing setup in the app.
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(250);
+    }
   }
+  if (WiFi.status() != WL_CONNECTED) {
+      Serial.println(
+        "Recovery provisioning is required."
+      );
 
-  if (provisioningStarted) {
-    Serial.println(
-      "Wi-Fi connected. Waiting for provisioning cleanup..."
-    );
+      return;
+    }
+  if (
+      networkStartupMode == NetworkStartupMode::Provisioning ||
+      networkStartupMode == NetworkStartupMode::ProvisioningCleanupComplete) {
+    if (networkStartupMode == NetworkStartupMode::Provisioning) {
+      Serial.println("Wi-Fi connected. Waiting for provisioning cleanup...");
 
-    while (!provisioningCleanedUp) {
-      delay(50);
+      const unsigned long provisioningWaitTimeoutMs = 10000;
+      unsigned long provisioningWaitStartMs = millis();
+      while (networkStartupMode == NetworkStartupMode::Provisioning) {
+        if (millis() - provisioningWaitStartMs >= provisioningWaitTimeoutMs) {
+          Serial.println(
+            "ERROR: Provisioning cleanup timed out. Restarting safely."
+          );
+
+          delay(500);
+          ESP.restart();
+        }
+        delay(50);
+      }
     }
 
     Serial.println("Provisioning cleanup complete.");
   } else {
-    Serial.println(
-      "Wi-Fi connected using saved credentials."
-    );
+    networkStartupMode = NetworkStartupMode::SavedCredentials;
+    Serial.println("Wi-Fi connected using saved credentials.");
   }
 
   Serial.println("Wi-Fi ready.");
@@ -173,10 +263,30 @@ void setup() {
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
+
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
-  }
+  Serial.printf(
+    "ERROR: Camera initialization failed with error 0x%x\n",
+    err
+  );
+
+  Serial.printf(
+    "Free heap: %u bytes\n",
+    ESP.getFreeHeap()
+  );
+
+  Serial.printf(
+    "Largest DMA-capable block: %u bytes\n",
+    heap_caps_get_largest_free_block(MALLOC_CAP_DMA)
+  );
+
+  Serial.printf(
+    "Free PSRAM: %u bytes\n",
+    ESP.getFreePsram()
+  );
+
+  return;
+}
 
   sensor_t *s = esp_camera_sensor_get();
   // initial sensors are flipped vertically and colors are a bit saturated
@@ -206,8 +316,8 @@ void setup() {
 
   // Once networking is available, register the camera handlers and expose the
   // device over mDNS so the mobile app can discover it more easily.
-  startCameraServer();
-  if (MDNS.begin(HR_MDNS_HOSTNAME)) {
+startCameraServer();
+if (MDNS.begin(HR_MDNS_HOSTNAME)) {
   MDNS.addService("http", "tcp", 80);
   MDNS.addService("hiddenrolls", "tcp", 81);
 
