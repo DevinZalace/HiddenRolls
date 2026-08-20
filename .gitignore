@@ -43,3 +43,6 @@ yarn-error.*
 
 # Per-device HiddenRolls provisioning identity and secret
 firmware/CameraWebServer1/tray_config.h
+
+# Generated per-device manufacturing artifacts contain provisioning secrets
+device_artifacts/
