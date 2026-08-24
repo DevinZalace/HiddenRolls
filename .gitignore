@@ -46,3 +46,6 @@ firmware/CameraWebServer1/tray_config.h
 
 # Generated per-device manufacturing artifacts contain provisioning secrets
 device_artifacts/
+
+# Local Android/Gradle build cache
+modules/hidden-rolls-provisioning/android/.gradle/
