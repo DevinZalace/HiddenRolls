@@ -29,8 +29,18 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
-    ],
+    "expo-font",
+    [
+      "expo-build-properties",
+      {
+        "android": {
+          "extraMavenRepos": [
+            "https://jitpack.io"
+          ]
+        }
+      }
+    ]
+  ],
     "extra": {
       "eas": {
         "projectId": "565ace31-eca9-464f-9920-63265de0eae5"
