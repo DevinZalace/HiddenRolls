@@ -3,7 +3,7 @@
     "backgroundColor": "#000000",
     "name": "HiddenRolls",
     "description": "Expo configuration for the Hidden Rolls mobile experience.",
-    "slug": "HiddenRolls",
+    "slug": "hidden-rolls",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,18 +22,30 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.dntmfg.hiddenrolls"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
-    ],
+    "expo-font",
+    [
+      "expo-build-properties",
+      {
+        "android": {
+          "extraMavenRepos": [
+            "https://jitpack.io"
+          ]
+        }
+      }
+    ]
+  ],
     "extra": {
       "eas": {
-        "projectId": "74938682-77a9-4dd7-90a4-18fdb944d6cf"
+        "projectId": "565ace31-eca9-464f-9920-63265de0eae5"
       }
-    }
+    },
+    "owner": "dnt-mfg-llc"
   }
 }
