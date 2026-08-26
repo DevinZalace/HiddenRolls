@@ -3,3 +3,13 @@ import HiddenRollsProvisioning from "../modules/hidden-rolls-provisioning/src/Hi
 export function parseTrayQr(payload) {
   return HiddenRollsProvisioning.parseQr(payload);
 }
+
+export function getBluetoothStatus() {
+  return HiddenRollsProvisioning.getBluetoothStatus();
+}
+
+export async function requestBluetoothPermissions() {
+  await HiddenRollsProvisioning.requestBluetoothPermissions();
+
+  return HiddenRollsProvisioning.getBluetoothStatus();
+}
