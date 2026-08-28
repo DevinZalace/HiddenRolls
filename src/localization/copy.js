@@ -38,6 +38,23 @@ export const copy = {
     lightControlErrorBody:
     "HiddenRolls could not reach the tray light. Check the tray's power and Wi-Fi connection, then try again.",
     brightness: "Brightness",
+    bluetoothUnavailableTitle: "Bluetooth unavailable",
+    bluetoothUnavailableBody:
+      "This device does not support the Bluetooth connection required to set up a Hidden Rolls tray.",
+
+    bluetoothPermissionTitle: "Bluetooth permission required",
+    bluetoothPermissionBody:
+      "Hidden Rolls needs Bluetooth permission to find and set up your tray.",
+
+    bluetoothOffTitle: "Turn on Bluetooth",
+    bluetoothOffBody:
+      "Bluetooth must be turned on before Hidden Rolls can set up your tray.",
+
+    bluetoothErrorTitle: "Bluetooth error",
+    bluetoothErrorBody:
+      "Hidden Rolls could not check Bluetooth availability. Please try again.",
+
+    checkingBluetooth: "Checking Bluetooth...",
   },
   es: {
     setupTitle: "Configuración",
@@ -78,5 +95,22 @@ export const copy = {
     lightControlErrorBody:
     "HiddenRolls no pudo comunicarse con la luz de la bandeja. Revisa la alimentación y la conexión Wi-Fi, e inténtalo de nuevo.",
     brightness: "Brillo",
+    bluetoothUnavailableTitle: "Bluetooth no disponible",
+    bluetoothUnavailableBody:
+      "Este dispositivo no admite la conexión Bluetooth necesaria para configurar una bandeja Hidden Rolls.",
+
+    bluetoothPermissionTitle: "Se requiere permiso de Bluetooth",
+    bluetoothPermissionBody:
+      "Hidden Rolls necesita permiso de Bluetooth para encontrar y configurar tu bandeja.",
+
+    bluetoothOffTitle: "Activa Bluetooth",
+    bluetoothOffBody:
+      "Bluetooth debe estar activado antes de que Hidden Rolls pueda configurar tu bandeja.",
+
+    bluetoothErrorTitle: "Error de Bluetooth",
+    bluetoothErrorBody:
+      "Hidden Rolls no pudo comprobar la disponibilidad de Bluetooth. Inténtalo de nuevo.",
+
+    checkingBluetooth: "Comprobando Bluetooth...",
   },
 };
