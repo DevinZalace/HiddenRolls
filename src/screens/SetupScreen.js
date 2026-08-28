@@ -1,9 +1,67 @@
 // Setup screen for selecting language and guiding the user through device connection.
 import { StatusBar } from "expo-status-bar";
-import {Pressable,Text,View,} from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
 import { styles } from "../theme/styles";
+import {
+  getBluetoothStatus,
+  requestBluetoothPermissions,
+} from "../../services/provisioningService";
 
 export function SetupScreen({ navigation, t, language, setLanguage}) {
+  const [checkingBluetooth, setCheckingBluetooth] = useState(false);
+  async function handleConnect() {
+  if (checkingBluetooth) {
+    return;
+  }
+
+  setCheckingBluetooth(true);
+
+  try {
+    let bluetoothStatus = getBluetoothStatus();
+
+    if (!bluetoothStatus.supported) {
+      Alert.alert(
+        t.bluetoothUnavailableTitle,
+        t.bluetoothUnavailableBody
+      );
+      return;
+    }
+
+    if (!bluetoothStatus.permissionsGranted) {
+      bluetoothStatus = await requestBluetoothPermissions();
+    }
+
+    if (!bluetoothStatus.permissionsGranted) {
+      Alert.alert(
+        t.bluetoothPermissionTitle,
+        t.bluetoothPermissionBody
+      );
+      return;
+    }
+
+    if (!bluetoothStatus.enabled) {
+      Alert.alert(
+        t.bluetoothOffTitle,
+        t.bluetoothOffBody
+      );
+      return;
+    }
+
+    navigation.navigate("Connecting");
+  } catch (error) {
+    console.error("Bluetooth readiness check failed:", error);
+
+    Alert.alert(
+      t.bluetoothErrorTitle,
+      t.bluetoothErrorBody
+    );
+  } finally {
+    setCheckingBluetooth(false);
+  }
+}
+  
+  
   return (
     <View style={styles.setupRoot}>
       <View style={styles.setupTop}>
@@ -57,10 +115,17 @@ export function SetupScreen({ navigation, t, language, setLanguage}) {
           <Text style={styles.helpBody}>{t.connectSteps}</Text>
 
           <Pressable
-            style={[styles.primaryBtn, { marginTop: 14 }]}
-            onPress={() => navigation.navigate("Connecting")}
+            style={[
+              styles.primaryBtn,
+              { marginTop: 14 },
+              checkingBluetooth && { opacity: 0.6 },
+            ]}
+            onPress={handleConnect}
+            disabled={checkingBluetooth}
           >
-            <Text style={styles.primaryBtnText}>{t.connectBtn}</Text>
+            <Text style={styles.primaryBtnText}>
+              {checkingBluetooth ? t.checkingBluetooth : t.connectBtn}
+            </Text>
           </Pressable>
         </View>
       </View>
