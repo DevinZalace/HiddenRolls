@@ -13,3 +13,7 @@ export async function requestBluetoothPermissions() {
 
   return HiddenRollsProvisioning.getBluetoothStatus();
 }
+
+export function findTray() {
+  return HiddenRollsProvisioning.findTray();
+}
