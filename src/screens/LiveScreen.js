@@ -287,7 +287,10 @@ const brightnessPercent = Math.round(
 
         <Pressable
           style={styles.controlBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.reset({
+            index: 0,
+            routes: [{ name: "Landing" }],
+          })}
         >
           <Text style={styles.controlBtnText}>
             {t.back}

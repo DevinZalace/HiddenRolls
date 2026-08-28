@@ -39,8 +39,16 @@
           ]
         }
       }
-    ]
-  ],
+    ],
+  [
+    "expo-camera",
+    {
+      "cameraPermission": "Allow Hidden Rolls to scan your tray QR code.",
+      "recordAudioAndroid": false,
+      "barcodeScannerEnabled": true
+    }
+  ]
+],
     "extra": {
       "eas": {
         "projectId": "565ace31-eca9-464f-9920-63265de0eae5"

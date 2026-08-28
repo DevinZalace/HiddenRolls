@@ -48,7 +48,7 @@ export function SetupScreen({ navigation, t, language, setLanguage}) {
       return;
     }
 
-    navigation.navigate("Connecting");
+    navigation.navigate("ScanTray");
   } catch (error) {
     console.error("Bluetooth readiness check failed:", error);
 
