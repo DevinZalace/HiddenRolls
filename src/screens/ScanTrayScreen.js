@@ -9,7 +9,7 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 
-import { parseTrayQr } from "../../services/provisioningService";
+import { parseTrayQr, findTray } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
 
 export function ScanTrayScreen({ navigation,
@@ -20,6 +20,31 @@ export function ScanTrayScreen({ navigation,
 
   const [scanned, setScanned] = useState(false);
   const [scanError, setScanError] = useState(null);
+  const [findingTray, setFindingTray] = useState(false);
+  const [trayFoundOverBle, setTrayFoundOverBle] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState(null);
+
+    async function handleFindTray() {
+  if (findingTray) {
+    return;
+  }
+
+  setFindingTray(true);
+  setDiscoveryError(null);
+
+  try {
+    await findTray();
+    setTrayFoundOverBle(true);
+  } catch (error) {
+    console.error("BLE tray discovery failed:", error);
+
+    setDiscoveryError(
+      "Hidden Rolls could not find this tray nearby. Make sure the tray is powered on and ready for setup."
+    );
+  } finally {
+    setFindingTray(false);
+  }
+}
 
   function handleBarcodeScanned({ data }) {
     if (scanned) {
@@ -94,13 +119,30 @@ export function ScanTrayScreen({ navigation,
           </Text>
 
           <Pressable
-            style={[styles.primaryBtn, { marginTop: 14 }]}
-            onPress={() => navigation.replace("Connecting")}
-          >
+            style={[
+                styles.primaryBtn,
+                { marginTop: 14 },
+                findingTray && { opacity: 0.6 },
+            ]}
+            onPress={handleFindTray}
+            disabled={findingTray}
+            >
             <Text style={styles.primaryBtnText}>
-              Continue
+                {findingTray ? "Finding Tray..." : "Find Tray"}
             </Text>
-          </Pressable>
+            </Pressable>
+
+            {trayFoundOverBle ? (
+                <Text style={styles.helpBody}>
+                    Tray found over Bluetooth.
+                </Text>
+                ) : null}
+
+                {discoveryError ? (
+                <Text style={styles.helpBody}>
+                    {discoveryError}
+                </Text>
+                ) : null}
 
           <Pressable
             style={[styles.primaryBtn, { marginTop: 10 }]}
