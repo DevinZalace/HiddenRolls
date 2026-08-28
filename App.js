@@ -14,6 +14,7 @@ import { SetupScreen } from "./src/screens/SetupScreen";
 import { ConnectingScreen } from "./src/screens/ConnectingScreen";
 import { LiveScreen } from "./src/screens/LiveScreen";
 import { LandingScreen } from "./src/screens/LandingScreen";
+import { ScanTrayScreen } from "./src/screens/ScanTrayScreen";
 
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
@@ -26,6 +27,7 @@ export default function App() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [termsError, setTermsError] = useState("");
+  const [pendingTray, setPendingTray] = useState(null);
 
   // Hooks must be called before any return
   const [fontsLoaded] = useFonts({
@@ -75,6 +77,7 @@ export default function App() {
         },
       }}
     >
+      
       <Stack.Screen name="Landing">
         {({ navigation }) => (
           <LandingScreen
@@ -99,6 +102,16 @@ export default function App() {
             t={t}
             language={language}
             setLanguage={setLanguage}
+          />
+        )}
+      </Stack.Screen>
+
+      <Stack.Screen name="ScanTray">
+        {(props) => (
+          <ScanTrayScreen
+            {...props}
+            pendingTray={pendingTray}
+            setPendingTray={setPendingTray}
           />
         )}
       </Stack.Screen>
