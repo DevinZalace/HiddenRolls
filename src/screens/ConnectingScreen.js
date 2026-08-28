@@ -35,7 +35,10 @@ export function ConnectingScreen({ navigation, t }) {
 
     if (result.connected) {
       setConnectionState("connected");
-      navigation.replace("Live");
+      navigation.reset({
+      index: 0,
+      routes: [{ name: "Live" }],
+    });
       return;
     }
 
