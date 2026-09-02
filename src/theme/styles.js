@@ -1,4 +1,26 @@
-// Shared visual styles for the app experience.
+/**
+ * styles.js
+ *
+ * Centralized style definitions for all screens and components.
+ * Uses React Native StyleSheet for performance optimization.
+ *
+ * Organized by purpose:
+ * - Layout containers (setupRoot, overlay, etc.)
+ * - Typography (title, body, label)
+ * - Buttons (primary, secondary, ghost variants)
+ * - Modal dialogs
+ * - Component-specific styles (chips, sliders, etc.)
+ *
+ * Colors:
+ * - Primary: White text on dark backgrounds
+ * - Background: Pure black (#0b0b0b and #000)
+ * - Accents: Semi-transparent white overlays
+ *
+ * Fonts:
+ * - Titles: Cinzel 700 Bold (serif, elegant)
+ * - Body: Inter 400 Regular (sans-serif, readable)
+ */
+
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({

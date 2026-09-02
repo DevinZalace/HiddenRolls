@@ -1,9 +1,23 @@
+/**
+ * cameraService.js
+ *
+ * Service layer for HTTP communication with the ESP32-CAM device.
+ * Provides:
+ * - Connection verification (ping/status checks)
+ * - Light intensity control via HTTP requests
+ * - Timeout handling and error recovery
+ *
+ * All methods return result objects instead of throwing errors,
+ * allowing screens to decide how to present failures.
+ */
+
 import {
   CAMERA_CONFIG,
   buildCameraControlUrl,
   buildCameraStatusUrl,
 } from "../config/camera";
 
+// Default timeout for all HTTP requests to the camera
 const DEFAULT_TIMEOUT_MS = 5000;
 
 /**

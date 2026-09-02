@@ -1,7 +1,19 @@
-// Central configuration for locating the HiddenRolls camera.
-//
-// The known IP address remains the default for now so that moving this
-// configuration out of App.js does not change the app's behavior yet.
+/**
+ * camera.js
+ *
+ * Central configuration for the ESP32-CAM device communication.
+ * Contains:
+ * - Network settings (host, ports, paths)
+ * - Light control settings (min/max intensity, default level)
+ * - URL builder functions for HTTP requests
+ *
+ * The camera communicates via HTTP on three ports:
+ * - 80: Status checking and light control
+ * - 81: MJPEG video stream
+ *
+ * The default mDNS hostname (hiddenrolls-*.local) is device-specific.
+ * A fallback IP address is provided for environments without mDNS support.
+ */
 
 export const CAMERA_CONFIG = {
     defaultHost: "hiddenrolls-lgz32z.local",
