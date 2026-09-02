@@ -1,34 +1,77 @@
-// Primary live-view screen that embeds the camera stream and basic controls.
+/**
+ * LiveScreen.js
+ *
+ * Main live view screen displaying:
+ * - Embedded camera video stream via WebView
+ * - Light on/off toggle button
+ * - Brightness slider for adjustable light intensity (0-255)
+ * - Connection recovery with manual reload
+ *
+ * Uses WebView to embed the ESP32-CAM MJPEG stream directly.
+ * Light control sends HTTP requests to the camera device.
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import {Alert,Pressable,Text,View,} from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { WebView } from "react-native-webview";
-import {CAMERA_CONFIG,buildCameraStreamUrl,} from "../../config/camera";
-import {checkCameraConnection,setCameraLightIntensity,} from "../../services/cameraService";
+import { CAMERA_CONFIG, buildCameraStreamUrl } from "../../config/camera";
+import {
+  checkCameraConnection,
+  setCameraLightIntensity,
+} from "../../services/cameraService";
 import { styles } from "../theme/styles";
 
+// Build the MJPEG stream URL for the camera
 const ESP32_STREAM_URL = buildCameraStreamUrl();
 
+/**
+ * LiveScreen Component
+ *
+ * Props:
+ * - navigation: React Navigation object
+ * - t: Localized text strings
+ * - lightOn: Current light state (boolean)
+ * - setLightOn: Function to update light state
+ */
 export function LiveScreen({ navigation, t, lightOn, setLightOn }) {
+  // ===== Stream State =====
   const [streamError, setStreamError] = useState(false);
+  // If true, WebView failed to load; show reload button
+
   const [streamReloadKey, setStreamReloadKey] = useState(0);
+  // Used to force WebView reload by changing key
+
+  // ===== Light Control State =====
   const [lightIsChanging, setLightIsChanging] = useState(false);
+  // Loading state while sending light control request
+
   const [lightIntensity, setLightIntensity] = useState(
-  CAMERA_CONFIG.lightMinimumIntensity
-);
+    CAMERA_CONFIG.lightMinimumIntensity
+  );
+  // Current light level (0-255)
 
-const [sliderValue, setSliderValue] = useState(
-  CAMERA_CONFIG.lightMinimumIntensity
-);
+  const [sliderValue, setSliderValue] = useState(
+    CAMERA_CONFIG.lightMinimumIntensity
+  );
+  // Slider UI state (may differ from actual intensity while dragging)
 
-const [lastNonZeroIntensity, setLastNonZeroIntensity] = useState(
-  CAMERA_CONFIG.lightDefaultIntensity
-);
+  const [lastNonZeroIntensity, setLastNonZeroIntensity] = useState(
+    CAMERA_CONFIG.lightDefaultIntensity
+  );
+  // Remember last brightness before turning light off
+  // Used to restore to previous level when turning light back on
 
-const isAdjustingLight = useRef(false);
+  const isAdjustingLight = useRef(false);
+  // Flag to optimize slider behavior while user is dragging
 
-async function toggleCameraLight() {
+  /**
+   * Toggles camera light on/off.
+   * When turning on, uses last non-zero intensity or default.
+   * When turning off, sets intensity to minimum (0).
+   */
+  async function toggleCameraLight() {
   if (lightIsChanging) {
     return;
   }
@@ -72,7 +115,12 @@ async function toggleCameraLight() {
   }
 }
 
-async function updateLightBrightness(value) {
+  /**
+   * Updates camera light brightness from slider.
+   * Sends HTTP request to camera to change LED intensity.
+   * Updates UI to reflect new intensity level.
+   */
+  async function updateLightBrightness(value) {
   const requestedIntensity = Math.round(value);
 
   isAdjustingLight.current = false;

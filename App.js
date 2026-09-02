@@ -1,3 +1,18 @@
+/**
+ * App.js - Root Application Component
+ *
+ * Hidden Rolls is a tabletop camera application that allows users to:
+ * 1. Set up a Bluetooth-enabled ESP32 camera tray via provisioning
+ * 2. Connect to the camera over Wi-Fi
+ * 3. View a live video stream with controllable lighting
+ *
+ * Navigation Flow:
+ * Landing -> Setup -> ScanTray -> Connecting -> Live
+ *
+ * The app uses React Navigation for screen management and supports
+ * multi-language localization (English and Spanish).
+ */
+
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
 import { useState } from "react";
@@ -19,27 +34,42 @@ import { ScanTrayScreen } from "./src/screens/ScanTrayScreen";
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
 
+// Create navigation stack for screen management
 const Stack = createNativeStackNavigator();
 
+/**
+ * Main application component that manages:
+ * - Navigation stack and screen transitions
+ * - Global app state (onboarding, language, light control)
+ * - Font loading and initial animation
+ * - Localized copy based on selected language
+ */
 export default function App() {
-  // App-level state for onboarding, terms acceptance, and simple UI toggles.
-  const [showIntro, setShowIntro] = useState(true);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [termsError, setTermsError] = useState("");
-  const [pendingTray, setPendingTray] = useState(null);
+  // ===== Onboarding & Terms State =====
+  const [showIntro, setShowIntro] = useState(true); // Show splash/intro animation on startup
+  const [termsAccepted, setTermsAccepted] = useState(false); // User must accept terms before setup
+  const [showTerms, setShowTerms] = useState(false); // Toggle terms modal visibility
+  const [termsError, setTermsError] = useState(""); // Error message if terms not accepted
 
-  // Hooks must be called before any return
+  // ===== Device Provisioning State =====
+  const [pendingTray, setPendingTray] = useState(null); // Holds tray info from scanned QR code
+
+  // ===== Font Loading (required before rendering text) =====
   const [fontsLoaded] = useFonts({
-    Cinzel_700Bold,
-    Inter_400Regular,
+    Cinzel_700Bold, // Used for titles
+    Inter_400Regular, // Used for body text
   });
-  const [language, setLanguage] = useState("en"); // en | es (we can add more)
-  const [lightOn, setLightOn] = useState(false);
 
+  // ===== Localization & UI State =====
+  const [language, setLanguage] = useState("en"); // "en" or "es"; supports more languages
+  const [lightOn, setLightOn] = useState(false); // Camera light on/off toggle for live view
+
+  // Get localized text strings for current language
   const t = copy[language];
 
-  // Render a lightweight loading screen until custom fonts are ready.
+  // ===== Render Stages =====
+
+  // Stage 1: Fonts loading - show blank screen while loading fonts
   if (!fontsLoaded) {
     return (
       <View style={styles.loading}>
@@ -48,6 +78,7 @@ export default function App() {
     );
   }
 
+  // Stage 2: Intro animation - show branded splash screen
   if (showIntro) {
     return (
       <View style={styles.introContainer}>
@@ -64,78 +95,87 @@ export default function App() {
     );
   }
 
- // Main navigation shell for the landing, setup, connection, and live-view screens.
+  // Stage 3: Main navigation - render the full app with all screens
   return (
-  <NavigationContainer theme={DarkTheme}>
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: "slide_from_right",
-        presentation: "card",
-        contentStyle: {
-          backgroundColor: "#000",
-        },
-      }}
-    >
-      
-      <Stack.Screen name="Landing">
-        {({ navigation }) => (
-          <LandingScreen
-            navigation={navigation}
-            t={t}
-            language={language}
-            setLanguage={setLanguage}
-            showTerms={showTerms}
-            setShowTerms={setShowTerms}
-            termsError={termsError}
-            setTermsError={setTermsError}
-            termsAccepted={termsAccepted}
-            setTermsAccepted={setTermsAccepted}
-          />
-        )}
-      </Stack.Screen>
+    <NavigationContainer theme={DarkTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false, // No native header; custom UI only
+          animation: "slide_from_right", // Screen transitions slide in from right
+          presentation: "card", // Screens presented as cards
+          contentStyle: {
+            backgroundColor: "#000", // Black background for all screens
+          },
+        }}
+      >
+        {/* ===== Screen 1: Landing ===== */}
+        {/* Welcome screen with language selection and terms acceptance */}
+        <Stack.Screen name="Landing">
+          {({ navigation }) => (
+            <LandingScreen
+              navigation={navigation}
+              t={t}
+              language={language}
+              setLanguage={setLanguage}
+              showTerms={showTerms}
+              setShowTerms={setShowTerms}
+              termsError={termsError}
+              setTermsError={setTermsError}
+              termsAccepted={termsAccepted}
+              setTermsAccepted={setTermsAccepted}
+            />
+          )}
+        </Stack.Screen>
 
-      <Stack.Screen name="Setup">
-        {({ navigation }) => (
-          <SetupScreen
-            navigation={navigation}
-            t={t}
-            language={language}
-            setLanguage={setLanguage}
-          />
-        )}
-      </Stack.Screen>
+        {/* ===== Screen 2: Setup ===== */}
+        {/* Bluetooth setup and permissions check before QR scanning */}
+        <Stack.Screen name="Setup">
+          {({ navigation }) => (
+            <SetupScreen
+              navigation={navigation}
+              t={t}
+              language={language}
+              setLanguage={setLanguage}
+            />
+          )}
+        </Stack.Screen>
 
-      <Stack.Screen name="ScanTray">
-        {(props) => (
-          <ScanTrayScreen
-            {...props}
-            pendingTray={pendingTray}
-            setPendingTray={setPendingTray}
-          />
-        )}
-      </Stack.Screen>
+        {/* ===== Screen 3: ScanTray ===== */}
+        {/* QR code scanning -> Bluetooth discovery -> Bluetooth connection -> Wi-Fi scan */}
+        <Stack.Screen name="ScanTray">
+          {(props) => (
+            <ScanTrayScreen
+              {...props}
+              pendingTray={pendingTray}
+              setPendingTray={setPendingTray}
+            />
+          )}
+        </Stack.Screen>
 
-      <Stack.Screen name="Connecting">
-        {({ navigation }) => (
-          <ConnectingScreen
-            navigation={navigation}
-            t={t}
-          />
-        )}
-      </Stack.Screen>
+        {/* ===== Screen 4: Connecting ===== */}
+        {/* Attempts to establish Wi-Fi connection to camera */}
+        <Stack.Screen name="Connecting">
+          {({ navigation }) => (
+            <ConnectingScreen
+              navigation={navigation}
+              t={t}
+            />
+          )}
+        </Stack.Screen>
 
-      <Stack.Screen name="Live">
-        {({ navigation }) => (
-          <LiveScreen
-            navigation={navigation}
-            t={t}
-            lightOn={lightOn}
-            setLightOn={setLightOn}
-          />
-        )}
-      </Stack.Screen>
-    </Stack.Navigator>
-  </NavigationContainer>
-);
+        {/* ===== Screen 5: Live ===== */}
+        {/* Main live view with video stream and light control */}
+        <Stack.Screen name="Live">
+          {({ navigation }) => (
+            <LiveScreen
+              navigation={navigation}
+              t={t}
+              lightOn={lightOn}
+              setLightOn={setLightOn}
+            />
+          )}
+        </Stack.Screen>
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 }

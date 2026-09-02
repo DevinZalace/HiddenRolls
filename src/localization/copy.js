@@ -1,4 +1,19 @@
-// Localized copy used by the onboarding and connection experience.
+/**
+ * copy.js
+ *
+ * Centralized localization strings for the entire app.
+ * Supports multiple languages with a simple nested object structure.
+ *
+ * Organized by feature:
+ * - Setup & onboarding (setupTitle, languageLabel, etc.)
+ * - Bluetooth control (bluetoothUnavailableTitle, etc.)
+ * - Connection & streaming (connecting, connectionFailed, etc.)
+ * - Light control (light, brightness, lightControlErrorTitle, etc.)
+ * - UI controls (back, continue, agree, etc.)
+ *
+ * Current languages: English (en), Spanish (es)
+ * Can easily add more language objects following the same structure.
+ */
 export const copy = {
   en: {
     setupTitle: "Setup",

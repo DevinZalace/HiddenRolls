@@ -11,6 +11,7 @@ useExpoPublishing()
 
 dependencies {
   implementation 'com.github.espressif:esp-idf-provisioning-android:lib-2.4.4'
+  implementation 'org.greenrobot:eventbus:3.3.1'
 }
 
 // If you want to use the managed Android SDK versions from expo-modules-core, set this to true.
