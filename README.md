@@ -21,6 +21,11 @@ The project is currently expanding from a single development prototype toward a 
 - Synchronization with the tray's current light state
 - English and Spanish interface options
 - Separate landing, setup, connecting, and live-view screens
+- Tray-specific QR code scanning during setup
+- Bluetooth tray discovery and connection
+- Wi-Fi network scanning and secure credential provisioning
+- Automatic wait for the tray to become reachable after provisioning
+- Paired-tray routing to the live camera view
 - Centralized camera configuration and camera service logic
 
 ### ESP32-CAM Firmware
@@ -56,6 +61,17 @@ The firmware now supports two startup paths.
 
 Provisioning is intentionally completed before camera initialization because both systems compete for limited ESP32 memory, including DMA-capable memory required by the camera.
 
+The mobile setup flow is:
+
+1. Accept the app terms and open tray setup.
+2. Grant camera and Bluetooth permissions.
+3. Scan the tray-specific QR code.
+4. Find and connect to the tray over Bluetooth.
+5. Scan Wi-Fi networks visible to the tray.
+6. Select a network and enter its password.
+7. Wait for the tray to reconnect over Wi-Fi.
+8. Open the live camera view using the paired tray's hostname.
+
 Hidden Rolls is an active hardware-software prototype.
 
 The core physical tray system is working, including:
@@ -69,16 +85,10 @@ The core physical tray system is working, including:
 - Saved Wi-Fi reconnect
 - Per-tray device identity
 
-The current development focus is completing the consumer-facing onboarding experience inside the Hidden Rolls mobile app.
+The consumer-facing onboarding flow is implemented in the mobile app. The project remains an active hardware-software prototype, and production hardening is still in progress.
 
 Planned work includes:
 
-- Scan a tray-specific QR code from the Hidden Rolls app
-- Connect to the correct tray over BLE
-- Select a Wi-Fi network
-- Send Wi-Fi credentials securely to the tray
-- Discover the newly connected tray automatically
-- Remove development-specific tray addressing from the app
 - Improve recovery when a previously saved Wi-Fi network is unavailable
 - Support multiple production trays cleanly
 - Automatic dice recognition

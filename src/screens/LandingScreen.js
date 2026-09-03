@@ -6,10 +6,27 @@
  * User must accept terms before proceeding to setup.
  */
 
-import { ImageBackground, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Alert,
+  ImageBackground,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 
 import { styles } from "../theme/styles";
+
+import {
+  checkCameraConnection,
+} from "../../services/cameraService";
+
+import {
+  forgetPairedTray,
+} from "../../services/pairedTrayService";
 
 /**
  * LandingScreen Component
@@ -37,7 +54,87 @@ export function LandingScreen({
   setTermsError,
   termsAccepted,
   setTermsAccepted,
+  pairedTray,
+  setPairedTray,
 }) {
+
+  const [openingTray, setOpeningTray] = useState(false);
+
+  async function handleOpenTray() {
+    if (!pairedTray || openingTray) {
+      return;
+    }
+
+    setOpeningTray(true);
+
+    try {
+      const result = await checkCameraConnection({
+        host: pairedTray.hostname,
+        timeoutMs: 3000,
+      });
+
+      if (!result.connected) {
+        Alert.alert(
+          "Tray Not Found",
+          "Make sure your Hidden Rolls tray is powered on and connected to the same Wi-Fi network."
+        );
+
+        return;
+      }
+
+      navigation.navigate("Live");
+    } catch (error) {
+      console.error(
+        "Failed to open paired tray:",
+        error
+      );
+
+      Alert.alert(
+        "Tray Not Found",
+        "Hidden Rolls could not connect to your paired tray."
+      );
+    } finally {
+      setOpeningTray(false);
+    }
+  }
+
+  function handleForgetTray() {
+    if (!pairedTray) {
+      return;
+    }
+
+    Alert.alert(
+      "Forget Tray?",
+      "This removes the tray from this app. It will not erase the Wi-Fi settings stored on the tray.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Forget",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await forgetPairedTray();
+              setPairedTray(null);
+            } catch (error) {
+              console.error(
+                "Failed to forget paired tray:",
+                error
+              );
+
+              Alert.alert(
+                "Could Not Forget Tray",
+                "Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <ImageBackground
       source={require("../../assets/Open.png")}
@@ -113,16 +210,62 @@ export function LandingScreen({
         </Modal>
 
         {/* Continue Button - shows terms modal if not accepted, else navigates to setup */}
-        <Pressable
-          style={styles.primaryBtn}
-          onPress={() => {
-            setTermsError("");
-            if (!termsAccepted) setShowTerms(true);
-            else navigation.navigate("Setup");
-          }}
-        >
-          <Text style={styles.primaryBtnText}>{t.continue}</Text>
-        </Pressable>
+        {pairedTray ? (
+          <View style={styles.helpCard}>
+            <Text style={styles.helpTitle}>
+              {pairedTray.displayName}
+            </Text>
+
+            <Text style={styles.helpBody}>
+              {pairedTray.hostname}
+            </Text>
+
+            <Pressable
+              style={[
+                styles.primaryBtn,
+                { marginTop: 14 },
+                openingTray && { opacity: 0.6 },
+              ]}
+              onPress={handleOpenTray}
+              disabled={openingTray}
+            >
+              <Text style={styles.primaryBtnText}>
+                {openingTray
+                  ? "Opening Tray..."
+                  : "Open Tray"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.primaryBtn,
+                { marginTop: 10 },
+              ]}
+              onPress={handleForgetTray}
+            >
+              <Text style={styles.primaryBtnText}>
+                Forget Tray
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            style={styles.primaryBtn}
+            onPress={() => {
+              setTermsError("");
+
+              if (!termsAccepted) {
+                setShowTerms(true);
+              } else {
+                navigation.navigate("Setup");
+              }
+            }}
+          >
+            <Text style={styles.primaryBtnText}>
+              {t.continue}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <StatusBar style="light" />

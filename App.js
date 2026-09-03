@@ -15,7 +15,7 @@
 
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LottieView from "lottie-react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -30,6 +30,9 @@ import { ConnectingScreen } from "./src/screens/ConnectingScreen";
 import { LiveScreen } from "./src/screens/LiveScreen";
 import { LandingScreen } from "./src/screens/LandingScreen";
 import { ScanTrayScreen } from "./src/screens/ScanTrayScreen";
+import {
+  loadPairedTray,
+} from "./services/pairedTrayService";
 
 // Enable native screen optimizations for smoother navigation performance.
 enableScreens(true);
@@ -54,6 +57,7 @@ export default function App() {
   // ===== Device Provisioning State =====
   const [pendingTray, setPendingTray] = useState(null); // Holds tray info from scanned QR code
   const [pairedTray, setPairedTray] = useState(null); // Holds tray info after successful Bluetooth connection
+  const [pairedTrayLoaded, setPairedTrayLoaded] = useState(false); // Flag to indicate if paired tray info has been loaded from storage
 
   // ===== Font Loading (required before rendering text) =====
   const [fontsLoaded] = useFonts({
@@ -68,16 +72,38 @@ export default function App() {
   // Get localized text strings for current language
   const t = copy[language];
 
+  // Load paired tray information from AsyncStorage on app startup
+  useEffect(() => {
+  let active = true;
+
+  async function restorePairedTray() {
+    const storedTray = await loadPairedTray();
+
+    if (!active) {
+      return;
+    }
+
+    setPairedTray(storedTray);
+    setPairedTrayLoaded(true);
+  }
+
+  restorePairedTray();
+
+  return () => {
+    active = false;
+  };
+}, []);
+
   // ===== Render Stages =====
 
   // Stage 1: Fonts loading - show blank screen while loading fonts
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loading}>
-        <StatusBar style="light" />
-      </View>
-    );
-  }
+  if (!fontsLoaded || !pairedTrayLoaded) {
+  return (
+    <View style={styles.loading}>
+      <StatusBar style="light" />
+    </View>
+  );
+}
 
   // Stage 2: Intro animation - show branded splash screen
   if (showIntro) {
@@ -124,6 +150,8 @@ export default function App() {
               setTermsError={setTermsError}
               termsAccepted={termsAccepted}
               setTermsAccepted={setTermsAccepted}
+              pairedTray={pairedTray}
+              setPairedTray={setPairedTray}
             />
           )}
         </Stack.Screen>

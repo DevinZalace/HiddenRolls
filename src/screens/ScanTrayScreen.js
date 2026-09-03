@@ -14,6 +14,9 @@ import {
 import { waitForTrayReady } from "../../services/cameraService";
 import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
+import {
+  savePairedTray,
+} from "../../services/pairedTrayService";
 
 /**
  * ScanTrayScreen
@@ -204,6 +207,7 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
         pairedAt: new Date().toISOString(),
       };
 
+      await savePairedTray(pairedTray);
       setPairedTray(pairedTray);
       setPendingTray(null);
 
