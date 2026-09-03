@@ -11,6 +11,7 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 
+import { waitForTrayReady } from "../../services/cameraService";
 import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
 
@@ -25,7 +26,7 @@ import { styles } from "../theme/styles";
  *
  * Flow: Camera permission -> Scan QR -> Find Tray (BLE) -> Connect to Tray (BLE) -> Scan Wi-Fi networks
  */
-export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
+export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPairedTray }) {
   // Camera permission state
   const [permission, requestPermission] =
     useCameraPermissions();
@@ -55,6 +56,10 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
   const [provisioningWifi, setProvisioningWifi] = useState(false);
   const [provisionError, setProvisionError] = useState(null);
   const [wifiProvisioned, setWifiProvisioned] = useState(false);
+
+  // Finalization state after provisioning
+  const [finalizingSetup, setFinalizingSetup] = useState(false);
+  const [finalizationError, setFinalizationError] = useState(null);
 
   /**
    * Initiates Bluetooth discovery of the tray.
@@ -166,30 +171,63 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
 
   // Attempts to provision the tray with the selected Wi-Fi network and password.
   async function handleProvisionWifi() {
-  if (!selectedNetwork || provisioningWifi) {
-    return;
+    if (!selectedNetwork || provisioningWifi) {
+      return;
+    }
+
+    let provisioningSucceeded = false;
+
+    setProvisioningWifi(true);
+    setProvisionError(null);
+    setFinalizationError(null);
+
+    try {
+      await provisionWifi(
+        selectedNetwork.ssid,
+        wifiPassword
+      );
+
+      provisioningSucceeded = true;
+      setWifiProvisioned(true);
+      setFinalizingSetup(true);
+
+      await waitForTrayReady(
+        pendingTray.hostname
+      );
+
+      const pairedTray = {
+        schemaVersion: 1,
+        trayId: pendingTray.trayId,
+        displayName: `Hidden Rolls ${pendingTray.trayId}`,
+        hostname: pendingTray.hostname,
+        provisioningName: pendingTray.provisioningName,
+        pairedAt: new Date().toISOString(),
+      };
+
+      setPairedTray(pairedTray);
+      setPendingTray(null);
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Live" }],
+      });
+    } catch (error) {
+      console.error("Tray setup failed:", error);
+
+      if (provisioningSucceeded) {
+        setFinalizationError(
+          "The tray joined Wi-Fi, but Hidden Rolls could not reach it yet."
+        );
+      } else {
+        setProvisionError(
+          "Hidden Rolls could not connect the tray to this Wi-Fi network. Check the password and try again."
+        );
+      }
+    } finally {
+      setProvisioningWifi(false);
+      setFinalizingSetup(false);
+    }
   }
-
-  setProvisioningWifi(true);
-  setProvisionError(null);
-
-  try {
-    await provisionWifi(
-      selectedNetwork.ssid,
-      wifiPassword
-    );
-
-    setWifiProvisioned(true);
-  } catch (error) {
-    console.error("Tray Wi-Fi provisioning failed:", error);
-
-    setProvisionError(
-      "Hidden Rolls could not connect the tray to this Wi-Fi network. Check the password and try again."
-    );
-  } finally {
-    setProvisioningWifi(false);
-  }
-}
 
   function resetProvisioningState() {
     setPendingTray(null);
@@ -214,6 +252,9 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
     setProvisioningWifi(false);
     setProvisionError(null);
     setWifiProvisioned(false);
+
+    setFinalizingSetup(false);
+    setFinalizationError(null);
   }
 
   // Loading state: Camera permission is being checked
@@ -420,6 +461,20 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
           {wifiProvisioned ? (
             <Text style={styles.helpBody}>
               Tray connected to Wi-Fi successfully.
+            </Text>
+          ) : null}
+
+          {/* Finalization state: Show message while waiting for tray to be reachable over Wi-Fi */}
+          {finalizingSetup ? (
+            <Text style={styles.helpBody}>
+              Wi-Fi connected. Starting your tray...
+            </Text>
+          ) : null}
+
+          {/* Display finalization error if the tray is not reachable after provisioning */}
+          {finalizationError ? (
+            <Text style={styles.helpBody}>
+              {finalizationError}
             </Text>
           ) : null}
 

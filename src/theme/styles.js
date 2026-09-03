@@ -62,7 +62,6 @@ primaryBtn: {
   borderWidth: 1,
   borderColor: "rgba(255,255,255,0.28)",
   paddingVertical: 12,
-  paddingHorizontal: 18,
   borderRadius: 14,
 },
 primaryBtnText: {

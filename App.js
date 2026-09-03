@@ -53,6 +53,7 @@ export default function App() {
 
   // ===== Device Provisioning State =====
   const [pendingTray, setPendingTray] = useState(null); // Holds tray info from scanned QR code
+  const [pairedTray, setPairedTray] = useState(null); // Holds tray info after successful Bluetooth connection
 
   // ===== Font Loading (required before rendering text) =====
   const [fontsLoaded] = useFonts({
@@ -148,6 +149,7 @@ export default function App() {
               {...props}
               pendingTray={pendingTray}
               setPendingTray={setPendingTray}
+              setPairedTray={setPairedTray}
             />
           )}
         </Stack.Screen>
@@ -172,6 +174,7 @@ export default function App() {
               t={t}
               lightOn={lightOn}
               setLightOn={setLightOn}
+              pairedTray={pairedTray}
             />
           )}
         </Stack.Screen>
