@@ -317,9 +317,30 @@ if (savedCredentialsExist) {
   // Once networking is available, register the camera handlers and expose the
   // device over mDNS so the mobile app can discover it more easily.
 startCameraServer();
+
 if (MDNS.begin(HR_MDNS_HOSTNAME)) {
+  MDNS.setInstanceName(HR_DISPLAY_NAME);
+
+  // Standard HTTP service for the camera control/status server.
   MDNS.addService("http", "tcp", 80);
-  MDNS.addService("hiddenrolls", "tcp", 81);
+
+  // Hidden Rolls product discovery service.
+  // Port 80 is used because discovery will verify the tray through /status.
+  MDNS.addService("hiddenrolls", "tcp", 80);
+
+  MDNS.addServiceTxt(
+    "hiddenrolls",
+    "tcp",
+    "id",
+    HR_TRAY_ID
+  );
+
+  MDNS.addServiceTxt(
+    "hiddenrolls",
+    "tcp",
+    "ver",
+    "1"
+  );
 
   Serial.print("Camera page: http://");
   Serial.print(HR_MDNS_HOSTNAME);
@@ -328,13 +349,21 @@ if (MDNS.begin(HR_MDNS_HOSTNAME)) {
   Serial.print("Camera stream: http://");
   Serial.print(HR_MDNS_HOSTNAME);
   Serial.println(".local:81/stream");
+
+  Serial.print("mDNS hostname: ");
+  Serial.println(HR_MDNS_HOSTNAME);
+
+  Serial.println(
+    "Hidden Rolls discovery service: _hiddenrolls._tcp"
+  );
 } else {
   Serial.println("Error starting mDNS responder");
 }
 
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("' to connect");
+Serial.print("Camera Ready! Use 'http://");
+Serial.print(WiFi.localIP());
+Serial.println("' to connect");
+
 }
 
 void loop() {
