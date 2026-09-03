@@ -397,4 +397,71 @@ lightSlider: {
   width: "100%",
   height: 38,
 },
+
+wifiNetworkRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  width: "100%",
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  marginTop: 8,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.18)",
+},
+
+wifiNetworkRowSelected: {
+  borderWidth: 2,
+  backgroundColor: "rgba(255,255,255,0.08)",
+},
+
+wifiNetworkInfo: {
+  flex: 1,
+},
+
+wifiNetworkName: {
+  fontSize: 17,
+  fontWeight: "600",
+  color: "#ffffff",
+},
+
+wifiNetworkSignal: {
+  marginTop: 3,
+  fontSize: 13,
+  color: "rgba(255,255,255,0.65)",
+},
+
+wifiNetworkCheck: {
+  marginLeft: 14,
+  fontSize: 22,
+  fontWeight: "700",
+  color: "#ffffff",
+},
+
+wifiCredentials: {
+  width: "100%",
+  marginTop: 18,
+},
+
+wifiPasswordInput: {
+  width: "100%",
+  marginTop: 10,
+  paddingVertical: 12,
+  paddingHorizontal: 14,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.25)",
+  borderRadius: 10,
+  color: "#ffffff",
+},
+
+setupScrollContent: {
+  flexGrow: 1,
+  paddingBottom: 40,
+},
+
+setupScrollContent: {
+  flexGrow: 1,
+  paddingBottom: 40,
+},
 });
