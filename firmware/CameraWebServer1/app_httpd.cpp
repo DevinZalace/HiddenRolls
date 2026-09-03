@@ -22,6 +22,7 @@
 #include "sdkconfig.h"
 #include "camera_index.h"
 #include "board_config.h"
+#include "tray_config.h"
 
 // HTTP handlers and streaming logic for the camera firmware.
 // These endpoints serve the embedded control page and the live video feed
@@ -432,6 +433,15 @@ static esp_err_t status_handler(httpd_req_t *req) {
   char *p = json_response;
   char *end = json_response + sizeof(json_response);
   *p++ = '{';
+   p += snprintf(
+
+    p,
+    end - p,
+    "\"device\":\"hiddenrolls\","
+    "\"tray_id\":\"%s\","
+    "\"schema\":1,",
+    HR_TRAY_ID
+  );
 
   if (s->id.PID == OV5640_PID || s->id.PID == OV3660_PID) {
     for (int reg = 0x3400; reg < 0x3406; reg += 2) {
