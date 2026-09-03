@@ -182,3 +182,52 @@ export async function setCameraLight(
 
   return setCameraLightIntensity(intensity, options);
 }
+
+// Helper function to pause execution for a given number of milliseconds.
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Waits for the tray to become reachable over Wi-Fi after provisioning.
+export async function waitForTrayReady(
+  hostname,
+  {
+    timeoutMs = 60000,
+    intervalMs = 1500,
+  } = {}
+) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const controller = new AbortController();
+
+    const requestTimeout = setTimeout(() => {
+      controller.abort();
+    }, 3000);
+
+    try {
+      const response = await fetch(
+        buildCameraStatusUrl(hostname),
+        {
+          signal: controller.signal,
+          cache: "no-store",
+        }
+      );
+
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // Expected while the tray is tearing down BLE,
+      // starting the camera, or registering mDNS.
+    } finally {
+      clearTimeout(requestTimeout);
+    }
+
+    await sleep(intervalMs);
+  }
+
+  throw new Error(
+    `${hostname} did not become reachable after provisioning.`
+  );
+}

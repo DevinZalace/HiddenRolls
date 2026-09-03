@@ -24,8 +24,6 @@ import {
 import { styles } from "../theme/styles";
 
 // Build the MJPEG stream URL for the camera
-const ESP32_STREAM_URL = buildCameraStreamUrl();
-
 /**
  * LiveScreen Component
  *
@@ -34,8 +32,12 @@ const ESP32_STREAM_URL = buildCameraStreamUrl();
  * - t: Localized text strings
  * - lightOn: Current light state (boolean)
  * - setLightOn: Function to update light state
+ * - pairedTray: Object containing information about the paired tray
  */
-export function LiveScreen({ navigation, t, lightOn, setLightOn }) {
+export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
+  const cameraHost = pairedTray?.hostname;
+  const esp32StreamUrl = buildCameraStreamUrl(cameraHost);
+
   // ===== Stream State =====
   const [streamError, setStreamError] = useState(false);
   // If true, WebView failed to load; show reload button
@@ -84,7 +86,10 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn }) {
 
   try {
     const result = await setCameraLightIntensity(
-      requestedIntensity
+      requestedIntensity,
+      {
+        host: cameraHost,
+      }
     );
 
     if (!result.success) {
@@ -128,7 +133,10 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn }) {
 
   try {
     const result = await setCameraLightIntensity(
-      requestedIntensity
+      requestedIntensity,
+      {
+        host: cameraHost,
+      }
     );
 
     if (!result.success) {
@@ -170,6 +178,7 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn }) {
 
   async function checkCameraHealth() {
     const result = await checkCameraConnection({
+      host: cameraHost,
       timeoutMs: 2000,
     });
 
@@ -224,10 +233,12 @@ if (Number.isFinite(reportedLightIntensity)) {
       clearTimeout(nextCheckTimer);
     }
   };
-}, []);
+}, [cameraHost]);
 
   async function retryStream() {
-  const result = await checkCameraConnection();
+    const result = await checkCameraConnection({
+    host: cameraHost,
+  });
 
   if (!result.connected) {
     setStreamError(true);
@@ -242,6 +253,35 @@ const brightnessPercent = Math.round(
   (sliderValue / CAMERA_CONFIG.lightMaximumIntensity) * 100
 );
 
+// Render Logic
+if (!cameraHost) {
+  return (
+    <View style={styles.liveRoot}>
+      <Text style={styles.streamErrorTitle}>
+        No tray paired
+      </Text>
+
+      <Text style={styles.streamErrorBody}>
+        Set up a Hidden Rolls tray before opening the live view.
+      </Text>
+
+      <Pressable
+        style={styles.controlBtn}
+        onPress={() =>
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Landing" }],
+          })
+        }
+      >
+        <Text style={styles.controlBtnText}>
+          {t.back}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
   return (
     <View style={styles.liveRoot}>
       <StatusBar style="light" />
@@ -249,13 +289,13 @@ const brightnessPercent = Math.round(
       <View style={styles.videoArea}>
         <WebView
           key={streamReloadKey}
-          source={{ uri: ESP32_STREAM_URL }}
+          source={{ uri: esp32StreamUrl }}
           originWhitelist={["http://*"]}
           javaScriptEnabled={false}
           domStorageEnabled={false}
           cacheEnabled={false}
           onShouldStartLoadWithRequest={(request) =>
-            request.url === ESP32_STREAM_URL ||
+            request.url === esp32StreamUrl ||
             request.url === "about:blank"
           }
           onError={() => setStreamError(true)}
