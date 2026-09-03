@@ -3,13 +3,15 @@ import {
   Pressable,
   Text,
   View,
+  ScrollView,
+  TextInput,
 } from "react-native";
 import {
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
 
-import { parseTrayQr, findTray, connectTray, scanWifiNetworks } from "../../services/provisioningService";
+import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
 
 /**
@@ -47,6 +49,12 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
   const [wifiNetworks, setWifiNetworks] = useState([]);
   const [wifiScanError, setWifiScanError] = useState(null);
   const [selectedNetwork, setSelectedNetwork] = useState(null);
+
+  // Wi-Fi provisioning state
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [provisioningWifi, setProvisioningWifi] = useState(false);
+  const [provisionError, setProvisionError] = useState(null);
+  const [wifiProvisioned, setWifiProvisioned] = useState(false);
 
   /**
    * Initiates Bluetooth discovery of the tray.
@@ -149,6 +157,40 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
     }
   }
 
+  // Handles selection of a Wi-Fi network from the scanned list.
+  function handleSelectNetwork(network) {
+  setSelectedNetwork(network);
+  setWifiPassword("");
+  setProvisionError(null);
+}
+
+  // Attempts to provision the tray with the selected Wi-Fi network and password.
+  async function handleProvisionWifi() {
+  if (!selectedNetwork || provisioningWifi) {
+    return;
+  }
+
+  setProvisioningWifi(true);
+  setProvisionError(null);
+
+  try {
+    await provisionWifi(
+      selectedNetwork.ssid,
+      wifiPassword
+    );
+
+    setWifiProvisioned(true);
+  } catch (error) {
+    console.error("Tray Wi-Fi provisioning failed:", error);
+
+    setProvisionError(
+      "Hidden Rolls could not connect the tray to this Wi-Fi network. Check the password and try again."
+    );
+  } finally {
+    setProvisioningWifi(false);
+  }
+}
+
   function resetProvisioningState() {
     setPendingTray(null);
 
@@ -167,6 +209,11 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
     setWifiNetworks([]);
     setWifiScanError(null);
     setSelectedNetwork(null);
+
+    setWifiPassword("");
+    setProvisioningWifi(false);
+    setProvisionError(null);
+    setWifiProvisioned(false);
   }
 
   // Loading state: Camera permission is being checked
@@ -209,8 +256,14 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
 
   // QR scanned: Show provisioning flow (discovery -> connection -> Wi-Fi scan)
   if (pendingTray) {
-    return (
-      <View style={styles.setupRoot}>
+  return (
+    <View style={styles.setupRoot}>
+      <ScrollView
+        style={{ flex: 1, width: "100%" }}
+        contentContainerStyle={styles.setupScrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>
             Tray Found
@@ -294,17 +347,88 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
           ) : null}
 
           {/* Display discovered Wi-Fi networks with signal strength */}
-          {wifiNetworks.map((network) => (
-            <Pressable
-              key={network.ssid}
-              onPress={() => setSelectedNetwork(network)}
-            >
-              <Text style={styles.helpBody}>
-                {network.ssid} ({network.rssi} dBm)
-                {selectedNetwork?.ssid === network.ssid ? " ✓" : ""}
+          {wifiNetworks.map((network) => {
+            const selected =
+              selectedNetwork?.ssid === network.ssid;
+
+            return (
+              <Pressable
+                key={network.ssid}
+                style={[
+                  styles.wifiNetworkRow,
+                  selected && styles.wifiNetworkRowSelected,
+                ]}
+                onPress={() => handleSelectNetwork(network)}
+                disabled={provisioningWifi || wifiProvisioned}
+              >
+                <View style={styles.wifiNetworkInfo}>
+                  <Text style={styles.wifiNetworkName}>
+                    {network.ssid}
+                  </Text>
+
+                  <Text style={styles.wifiNetworkSignal}>
+                    Signal: {network.rssi} dBm
+                  </Text>
+                </View>
+
+                {selected ? (
+                  <Text style={styles.wifiNetworkCheck}>
+                    ✓
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+
+          {/* Display Wi-Fi provisioning form if a network is selected and not yet provisioned */}
+          {selectedNetwork && !wifiProvisioned ? (
+            <View style={styles.wifiCredentials}>
+              <Text style={styles.helpTitle}>
+                Connect to {selectedNetwork.ssid}
               </Text>
-            </Pressable>
-          ))}
+
+              <TextInput
+                style={styles.wifiPasswordInput}
+                value={wifiPassword}
+                onChangeText={setWifiPassword}
+                placeholder="Wi-Fi password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!provisioningWifi}
+              />
+
+              <Pressable
+                style={[
+                  styles.primaryBtn,
+                  { marginTop: 14 },
+                  provisioningWifi && { opacity: 0.6 },
+                ]}
+                onPress={handleProvisionWifi}
+                disabled={provisioningWifi}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {provisioningWifi
+                    ? "Connecting Tray..."
+                    : "Connect to Wi-Fi"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* Display success message if Wi-Fi provisioning succeeded */}
+          {wifiProvisioned ? (
+            <Text style={styles.helpBody}>
+              Tray connected to Wi-Fi successfully.
+            </Text>
+          ) : null}
+
+          {/* Display provisioning error message if it failed */}
+          {provisionError ? (
+            <Text style={styles.helpBody}>
+              {provisionError}
+            </Text>
+          ) : null}
 
           {/* Error messages */}
           {wifiScanError ? (
@@ -347,7 +471,8 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray }) {
             </Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
+    </View>
     );
   }
 
