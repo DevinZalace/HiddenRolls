@@ -35,31 +35,29 @@ import java.net.URL
 /**
  * HiddenRollsProvisioningModule
  *
- * Exposes native Android Bluetooth provisioning capabilities for Hidden Rolls camera trays.
- * This module handles:
- * - Parsing QR codes to extract device provisioning information
- * - Scanning for and discovering trays over Bluetooth Low Energy (BLE)
- * - Establishing Bluetooth connections to trays for provisioning
- * - Managing Bluetooth permissions and status
+ * Exposes native Android capabilities for Hidden Rolls tray setup.
+ * This module handles QR validation, BLE discovery and provisioning, local
+ * network discovery, Wi-Fi reset requests, and Bluetooth permissions.
  *
- * The provisioning flow is: parseQr() -> findTray() -> connectTray()
+ * New tray flow: parseQr() -> findTray() -> connectTray() -> provisionWifi().
+ * Existing trays are found with findExistingTrays(); a QR-selected tray can
+ * be reset with resetTrayWifi().
  */
 class HiddenRollsProvisioningModule : Module() {
-  // The current tray device being provisioned
+  // Native provisioning device for the current QR-selected tray.
   private var espDevice: ESPDevice? = null
-  // Proof of possession from the most recently scanned tray QR code.
-  // Kept only in native memory so it is not exposed to JavaScript.
+  // Proof of possession retained only in native memory for Wi-Fi reset.
   private var currentProofOfPossession: String? = null
   private var currentTrayId: String? = null
   private var currentTrayHostname: String? = null
-  // Promise for the active connection attempt
+  // Promise associated with the active BLE connection attempt.
   private var connectionPromise: Promise? = null
 
-  // Handler for posting tasks on the main thread
+  // Main-thread dispatcher required by the provisioning SDK.
   private val connectionHandler =
     Handler(Looper.getMainLooper())
 
-  // Timeout runnable for connection attempts
+  // Timeout callback for a pending BLE connection.
   private var connectionTimeout: Runnable? = null
 
   /**
@@ -428,9 +426,7 @@ class HiddenRollsProvisioningModule : Module() {
       )
     }
 
-    /**
-   * resets tray wifi if needed
-   */
+    /** Clear Wi-Fi on the tray selected by the last QR scan. */
     AsyncFunction("resetTrayWifi") { promise: Promise ->
       val hostname =
         currentTrayHostname
@@ -508,12 +504,7 @@ class HiddenRollsProvisioningModule : Module() {
       }.start()
     }
 
-    /**
-     * AsyncFunction: findTray
-     * Scans for a Bluetooth device matching the parsed QR code provisioning name.
-     * Performs up to 3 scan attempts with 500ms delays between retries.
-     * Returns the device's provisioning name and service UUID when found.
-     */
+    /** Find the QR-selected tray over BLE, retrying short scans when needed. */
     AsyncFunction("findTray") { promise: Promise ->
     val device = espDevice
 
@@ -698,12 +689,7 @@ class HiddenRollsProvisioningModule : Module() {
     startScanAttempt(1)
   }
 
-    /**
-     * AsyncFunction: connectTray
-     * Establishes a Bluetooth connection to the discovered tray device.
-     * Registers for connection events via EventBus and enforces a 15-second timeout.
-     * The actual connection result is delivered via onDeviceConnectionEvent().
-     */
+    /** Connect to the discovered tray and resolve on the SDK connection event. */
     AsyncFunction("connectTray") { promise: Promise ->
       val device = espDevice
 
@@ -1077,10 +1063,7 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
       buildBluetoothStatus()
     }
 
-    /**
-     * AsyncFunction: requestBluetoothPermissions
-     * Prompts the user to grant required Bluetooth permissions.
-     */
+    /** Request the BLE permissions required by the Android API level. */
     AsyncFunction("requestBluetoothPermissions") { promise: Promise ->
       Permissions.askForPermissionsWithPermissionsManager(
         appContext.permissions,
@@ -1089,12 +1072,7 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
       )
     }
 
-    /**
-     * SyncFunction: parseQr
-     * Parses a Hidden Rolls provisioning QR code and initializes an ESPDevice.
-     * Validates QR format and extracts device name, proof of possession, and provisioning details.
-     * Returns tray ID, provisioning name, and hostname for the discovered device.
-     */
+    /** Validate a tray QR payload and initialize the native provisioning device. */
     Function("parseQr") { payload: String ->
         currentProofOfPossession = null
         currentTrayId = null

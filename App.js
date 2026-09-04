@@ -2,16 +2,17 @@
  * App.js - Root Application Component
  *
  * Hidden Rolls is a tabletop camera application that allows users to:
- * 1. Set up a Bluetooth-enabled ESP32 camera tray via provisioning
- * 2. Connect to the camera over Wi-Fi
- * 3. View a live video stream with controllable lighting
+ * 1. Provision an ESP32 camera tray over Bluetooth
+ * 2. Pair with an already-configured tray discovered on the local network
+ * 3. Connect to the tray over Wi-Fi and view its live camera stream
+ * 4. Control the tray light from the live view
  *
  * Navigation Flows:
  *
- * New tray:
+ * New or reset tray:
  * Landing -> Setup -> ScanTray -> Live
  *
- * Existing tray:
+ * Paired tray:
  * Landing -> Live
  *
  * The app uses React Navigation for screen management and supports
@@ -38,18 +39,18 @@ import {
   loadPairedTray,
 } from "./services/pairedTrayService";
 
-// Enable native screen optimizations for smoother navigation performance.
+// Enable native screen optimizations for the navigation stack.
 enableScreens(true);
 
-// Create navigation stack for screen management
+// The app uses a single stack because onboarding and the live view share state.
 const Stack = createNativeStackNavigator();
 
 /**
  * Main application component that manages:
  * - Navigation stack and screen transitions
- * - Global app state (onboarding, language, light control)
- * - Font loading and initial animation
- * - Localized copy based on selected language
+ * - Terms acceptance and onboarding state
+ * - Paired-tray restoration from local storage
+ * - Font loading, startup animation, and localized copy
  */
 export default function App() {
   // ===== Onboarding & Terms State =====
@@ -58,10 +59,10 @@ export default function App() {
   const [showTerms, setShowTerms] = useState(false); // Toggle terms modal visibility
   const [termsError, setTermsError] = useState(""); // Error message if terms not accepted
 
-  // ===== Device Provisioning State =====
-  const [pendingTray, setPendingTray] = useState(null); // Holds tray info from scanned QR code
-  const [pairedTray, setPairedTray] = useState(null); // Holds tray info after successful Bluetooth connection
-  const [pairedTrayLoaded, setPairedTrayLoaded] = useState(false); // Flag to indicate if paired tray info has been loaded from storage
+  // ===== Tray State =====
+  const [pendingTray, setPendingTray] = useState(null); // Tray currently being scanned or provisioned
+  const [pairedTray, setPairedTray] = useState(null); // Tray saved for direct access from Landing
+  const [pairedTrayLoaded, setPairedTrayLoaded] = useState(false); // Prevent navigation before storage has been checked
 
   // ===== Font Loading (required before rendering text) =====
   const [fontsLoaded] = useFonts({
@@ -76,7 +77,7 @@ export default function App() {
   // Get localized text strings for current language
   const t = copy[language];
 
-  // Load paired tray information from AsyncStorage on app startup
+  // Restore the last paired tray before rendering the main navigation.
   useEffect(() => {
   let active = true;
 
@@ -100,7 +101,7 @@ export default function App() {
 
   // ===== Render Stages =====
 
-  // Stage 1: Fonts loading - show blank screen while loading fonts
+  // Stage 1: Wait for fonts and persisted tray state.
   if (!fontsLoaded || !pairedTrayLoaded) {
   return (
     <View style={styles.loading}>
@@ -109,7 +110,7 @@ export default function App() {
   );
 }
 
-  // Stage 2: Intro animation - show branded splash screen
+  // Stage 2: Play the branded startup animation once.
   if (showIntro) {
     return (
       <View style={styles.introContainer}>
@@ -126,7 +127,7 @@ export default function App() {
     );
   }
 
-  // Stage 3: Main navigation - render the full app with all screens
+  // Stage 3: Render the application navigation.
   return (
     <NavigationContainer theme={DarkTheme}>
       <Stack.Navigator
@@ -139,8 +140,7 @@ export default function App() {
           },
         }}
       >
-        {/* ===== Screen 1: Landing ===== */}
-        {/* Welcome screen with language selection and terms acceptance */}
+        {/* Landing: terms acceptance, paired-tray access, and discovery. */}
         <Stack.Screen name="Landing">
           {({ navigation }) => (
             <LandingScreen
@@ -160,8 +160,7 @@ export default function App() {
           )}
         </Stack.Screen>
 
-        {/* ===== Screen 2: Setup ===== */}
-        {/* Bluetooth setup and permissions check before QR scanning */}
+        {/* Setup: verify Bluetooth readiness before QR scanning. */}
         <Stack.Screen name="Setup">
           {({ navigation }) => (
             <SetupScreen
@@ -173,8 +172,7 @@ export default function App() {
           )}
         </Stack.Screen>
 
-        {/* ===== Screen 3: ScanTray ===== */}
-        {/* QR code scanning -> Bluetooth discovery -> Bluetooth connection -> Wi-Fi scan */}
+        {/* ScanTray: QR parsing, BLE discovery, BLE connection, and Wi-Fi setup. */}
         <Stack.Screen name="ScanTray">
           {(props) => (
             <ScanTrayScreen

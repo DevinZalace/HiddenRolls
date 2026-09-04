@@ -2,16 +2,20 @@
  * provisioningService.js
  *
  * Service layer that wraps native provisioning functionality.
- * Provides a JavaScript interface to native Android Bluetooth provisioning methods
- * implemented in the HiddenRollsProvisioning Expo native module.
+ * Provides a JavaScript interface to the native Expo module for BLE setup,
+ * local-network discovery, and Wi-Fi reset/reprovisioning.
  *
- * Provisioning Flow:
+ * Setup Flow:
  * 1. parseTrayQr() - Extract device info from QR code
  * 2. requestBluetoothPermissions() - Request user permission
  * 3. findTray() - Scan for tray over Bluetooth
  * 4. connectTray() - Establish Bluetooth connection
- * 5. scanWifiNetworks() - Get available Wi-Fi networks
- * 6. provisionWifi() - Send Wi-Fi credentials to tray
+ * 5. scanWifiNetworks() - Get networks visible to the tray
+ * 6. provisionWifi() - Send Wi-Fi credentials to the tray
+ * 7. waitForTrayReady() - Confirm the tray returned to the network
+ *
+ * Existing trays can be discovered with findExistingTrays(). A scanned tray
+ * can have its saved Wi-Fi cleared with resetTrayWifi().
  */
 
 import HiddenRollsProvisioning from "../modules/hidden-rolls-provisioning/src/HiddenRollsProvisioningModule";
@@ -52,7 +56,7 @@ export function findTray() {
 }
 
 /**
- * Establishes a Bluetooth connection to the discovered tray
+ * Establishes a Bluetooth connection to the discovered tray.
  * @returns {Promise<object>} Connection result
  */
 export function connectTray() {
@@ -85,9 +89,8 @@ export function findExistingTrays() {
 }
 
 /**
- * Clears the Wi-Fi credentials saved on a scanned tray.
- * Requires ownership proof retained by the native module
- * from the tray QR code.
+ * Clears the Wi-Fi credentials saved on the tray identified by the last
+ * scanned QR code. The native module supplies the retained proof of possession.
  *
  * @param {string} hostname
  * @returns {Promise<object>}

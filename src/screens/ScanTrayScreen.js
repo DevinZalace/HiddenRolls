@@ -25,13 +25,14 @@ import {
 /**
  * ScanTrayScreen
  *
- * Main provisioning flow screen that handles:
- * 1. QR code scanning to extract tray information
- * 2. Bluetooth discovery of the tray
- * 3. Bluetooth connection establishment
- * 4. Wi-Fi network scanning for provisioning
+ * Tray setup screen that handles:
+ * 1. QR parsing and tray identity verification
+ * 2. Existing-tray detection over Wi-Fi
+ * 3. BLE discovery and connection for unconfigured trays
+ * 4. Wi-Fi selection and provisioning
+ * 5. Wi-Fi reset and return to setup for existing trays
  *
- * Flow: Camera permission -> Scan QR -> Find Tray (BLE) -> Connect to Tray (BLE) -> Scan Wi-Fi networks
+ * Flow: Camera permission -> Scan QR -> verify Wi-Fi -> BLE setup -> Wi-Fi provisioning
  */
 export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPairedTray }) {
   // Camera permission state
@@ -42,7 +43,7 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
   const [scanned, setScanned] = useState(false);
   const [scanError, setScanError] = useState(null);
 
-  // Tray setup state (idle, checking, existing, ready, unreachable)
+  // Tray setup state: idle, checking, existing, ready, or unreachable.
   const [traySetupState, setTraySetupState] =
   useState("idle");
 
@@ -68,11 +69,11 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
   const [provisionError, setProvisionError] = useState(null);
   const [wifiProvisioned, setWifiProvisioned] = useState(false);
 
-  // Finalization state after provisioning
+  // Finalization state while waiting for the tray to rejoin Wi-Fi.
   const [finalizingSetup, setFinalizingSetup] = useState(false);
   const [finalizationError, setFinalizationError] = useState(null);
 
-  // Tray Wi-Fi reset state
+  // State for the destructive reset-and-reprovision action.
   const [resettingTrayWifi, setResettingTrayWifi] =
     useState(false);
 
@@ -211,7 +212,7 @@ async function handleUseExistingTray() {
   }
 }
 
-// Handles the user-initiated Wi-Fi reset for the tray.
+  // Ask for confirmation, clear saved Wi-Fi, and return the tray to BLE setup.
 function handleResetTrayWifi() {
   if (resettingTrayWifi) {
     return;

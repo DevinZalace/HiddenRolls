@@ -1,9 +1,9 @@
 /**
  * LandingScreen.js
  *
- * Welcome/landing page shown at app start.
- * Displays brand welcome message, language selection option, and terms/conditions.
- * User must accept terms before proceeding to setup.
+ * Entry screen shown after startup.
+ * Handles terms acceptance, direct access to the paired tray, and discovery
+ * of already-configured trays on the local network.
  */
 
 import { useState } from "react";
@@ -151,7 +151,7 @@ export function LandingScreen({
     );
   }
 
-  {/* Handler for finding existing trays on the network */}
+  // Discover and verify trays that are already configured on the local network.
   async function handleFindExistingTray() {
     if (findingExistingTray) {
       return;

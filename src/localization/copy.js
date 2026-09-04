@@ -7,9 +7,9 @@
  * Organized by feature:
  * - Setup & onboarding (setupTitle, languageLabel, etc.)
  * - Bluetooth control (bluetoothUnavailableTitle, etc.)
- * - Connection & streaming (connecting, connectionFailed, etc.)
+ * - Connection, discovery, and streaming feedback
  * - Light control (light, brightness, lightControlErrorTitle, etc.)
- * - UI controls (back, continue, agree, etc.)
+ * - UI controls and terms acceptance
  *
  * Current languages: English (en), Spanish (es)
  * Can easily add more language objects following the same structure.

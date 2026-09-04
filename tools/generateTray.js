@@ -1,12 +1,12 @@
 /**
  * generateTray.js
  *
- * Device provisioning tool that generates unique identities for each Hidden Rolls tray.
- * Runs once per tray to create:
+ * Device provisioning tool that generates a unique identity for each tray.
+ * Run once per tray to create:
  * - Random tray ID (6 characters)
  * - Random proof of possession (16 characters)
  * - Provisioning QR code (encodes tray config)
- * - Firmware configuration header with device secrets
+ * - Firmware configuration header containing the tray identity and PoP
  *
  * Usage: node tools/generateTray.js
  *
