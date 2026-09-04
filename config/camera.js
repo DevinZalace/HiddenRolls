@@ -16,9 +16,6 @@
  */
 
 export const CAMERA_CONFIG = {
-    defaultHost: "hiddenrolls-lgz32z.local",
-    fallbackHost: "192.168.0.84",
-
     statusPort: 80,
     statusPath: "/status",
 
@@ -40,18 +37,26 @@ export const CAMERA_CONFIG = {
  * A different host can be supplied later for discovery, testing,
  * or support for multiple HiddenRolls devices.
  */
-export function buildCameraStreamUrl(
-  host = CAMERA_CONFIG.defaultHost
-) {
+export function buildCameraStreamUrl(host) {
+  if (!host) {
+    throw new Error(
+      "A paired Hidden Rolls tray hostname is required."
+    );
+  }
+
   return `http://${host}:${CAMERA_CONFIG.streamPort}${CAMERA_CONFIG.streamPath}`;
 }
 
 /**
  * Builds the URL used to verify that the ESP32-CAM is reachable.
  */
-export function buildCameraStatusUrl(
-  host = CAMERA_CONFIG.defaultHost
-) {
+export function buildCameraStatusUrl(host) {
+  if (!host) {
+    throw new Error(
+      "A paired Hidden Rolls tray hostname is required."
+    );
+  }
+
   const port =
     CAMERA_CONFIG.statusPort === 80
       ? ""
@@ -66,8 +71,14 @@ export function buildCameraStatusUrl(
 export function buildCameraControlUrl(
   variable,
   value,
-  host = CAMERA_CONFIG.defaultHost
+  host
 ) {
+  if (!host) {
+    throw new Error(
+      "A paired Hidden Rolls tray hostname is required."
+    );
+  }
+
   const port =
     CAMERA_CONFIG.controlPort === 80
       ? ""
