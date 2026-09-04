@@ -28,6 +28,17 @@ import {
   forgetPairedTray,
 } from "../../services/pairedTrayService";
 
+import {
+  findExistingTrays,
+} from "../../services/provisioningService";
+
+import {
+  verifyHiddenRollsTray,
+} from "../../services/cameraService";
+
+import {
+  savePairedTray,
+} from "../../services/pairedTrayService";
 /**
  * LandingScreen Component
  *
@@ -59,6 +70,11 @@ export function LandingScreen({
 }) {
 
   const [openingTray, setOpeningTray] = useState(false);
+  const [findingExistingTray, setFindingExistingTray] =
+   useState(false);
+
+  const [findTrayError, setFindTrayError] =
+    useState("");
 
   async function handleOpenTray() {
     if (!pairedTray || openingTray) {
@@ -133,6 +149,91 @@ export function LandingScreen({
         },
       ]
     );
+  }
+
+  {/* Handler for finding existing trays on the network */}
+  async function handleFindExistingTray() {
+    if (findingExistingTray) {
+      return;
+    }
+
+    setFindingExistingTray(true);
+    setFindTrayError("");
+
+    try {
+      const discoveredTrays =
+        await findExistingTrays();
+
+      if (discoveredTrays.length === 0) {
+        setFindTrayError(
+          "No Hidden Rolls trays were found. Make sure your tray is powered on and connected to the same Wi-Fi network."
+        );
+
+        return;
+      }
+
+      const verifiedTrays = [];
+
+      for (const tray of discoveredTrays) {
+        const verified =
+          await verifyHiddenRollsTray(tray);
+
+        if (verified) {
+          verifiedTrays.push(tray);
+        }
+      }
+
+      if (verifiedTrays.length === 0) {
+        setFindTrayError(
+          "A device was discovered, but Hidden Rolls could not verify it."
+        );
+
+        return;
+      }
+
+      if (verifiedTrays.length > 1) {
+        setFindTrayError(
+          "Multiple Hidden Rolls trays were found. Tray selection will be added next."
+        );
+
+        return;
+      }
+
+      const discoveredTray =
+        verifiedTrays[0];
+
+      const restoredTray = {
+        schemaVersion: 1,
+        trayId: discoveredTray.trayId,
+        displayName:
+          discoveredTray.displayName ||
+          `Hidden Rolls ${discoveredTray.trayId}`,
+        hostname: discoveredTray.hostname,
+        provisioningName:
+          discoveredTray.provisioningName,
+        pairedAt: new Date().toISOString(),
+      };
+
+      await savePairedTray(restoredTray);
+
+      setPairedTray(restoredTray);
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Live" }],
+      });
+    } catch (error) {
+      console.error(
+        "Existing tray discovery failed:",
+        error
+      );
+
+      setFindTrayError(
+        "Hidden Rolls could not search for existing trays."
+      );
+    } finally {
+      setFindingExistingTray(false);
+    }
   }
 
   return (
@@ -249,22 +350,48 @@ export function LandingScreen({
             </Pressable>
           </View>
         ) : (
-          <Pressable
-            style={styles.primaryBtn}
-            onPress={() => {
-              setTermsError("");
+          <View>
+            <Pressable
+              style={styles.primaryBtn}
+              onPress={() => {
+                setTermsError("");
 
-              if (!termsAccepted) {
-                setShowTerms(true);
-              } else {
-                navigation.navigate("Setup");
-              }
-            }}
-          >
-            <Text style={styles.primaryBtnText}>
-              {t.continue}
-            </Text>
-          </Pressable>
+                if (!termsAccepted) {
+                  setShowTerms(true);
+                } else {
+                  navigation.navigate("Setup");
+                }
+              }}
+            >
+              <Text style={styles.primaryBtnText}>
+                Set Up New Tray
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.primaryBtn,
+                { marginTop: 12 },
+                findingExistingTray && {
+                  opacity: 0.6,
+                },
+              ]}
+              onPress={handleFindExistingTray}
+              disabled={findingExistingTray}
+            >
+              <Text style={styles.primaryBtnText}>
+                {findingExistingTray
+                  ? "Searching..."
+                  : "Find Existing Tray"}
+              </Text>
+            </Pressable>
+
+            {!!findTrayError && (
+              <Text style={styles.modalError}>
+                {findTrayError}
+              </Text>
+            )}
+          </View>
         )}
       </View>
 

@@ -85,6 +85,46 @@ export async function checkCameraConnection({
   }
 }
 
+export async function verifyHiddenRollsTray(
+  tray,
+  timeoutMs = 3000
+) {
+  if (!tray?.hostname || !tray?.trayId) {
+    return false;
+  }
+
+  const controller = new AbortController();
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const response = await fetch(
+      `http://${tray.hostname}/status`,
+      {
+        signal: controller.signal,
+      }
+    );
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const status = await response.json();
+
+    return (
+      status?.device === "hiddenrolls" &&
+      status?.tray_id === tray.trayId &&
+      status?.schema === 1
+    );
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /**
  * Sets the HiddenRolls camera light to a specific intensity.
  *

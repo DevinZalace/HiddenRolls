@@ -10,6 +10,8 @@ import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.Build
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import expo.modules.interfaces.permissions.Permissions
 import expo.modules.kotlin.Promise
 import android.bluetooth.BluetoothDevice
@@ -187,6 +189,236 @@ class HiddenRollsProvisioningModule : Module() {
    */
   override fun definition() = ModuleDefinition {
     Name("HiddenRollsProvisioning")
+
+    /**
+     * AsyncFunction: findExistingTrays
+     * Discovers already-provisioned Hidden Rolls trays on the local network.
+     */
+    AsyncFunction("findExistingTrays") { promise: Promise ->
+      val context = appContext.reactContext
+
+      if (context == null) {
+        promise.reject(
+          "ERR_NO_CONTEXT",
+          "Android application context is unavailable.",
+          null
+        )
+
+        return@AsyncFunction
+      }
+
+      val nsdManager =
+        context.getSystemService(Context.NSD_SERVICE)
+          as? NsdManager
+
+      if (nsdManager == null) {
+        promise.reject(
+          "ERR_NSD_UNAVAILABLE",
+          "Network service discovery is unavailable on this device.",
+          null
+        )
+
+        return@AsyncFunction
+      }
+
+      val serviceType = "_hiddenrolls._tcp."
+      val discoveredServices =
+        linkedMapOf<String, NsdServiceInfo>()
+
+      val results =
+        mutableListOf<Map<String, Any>>()
+
+      val handler =
+        Handler(Looper.getMainLooper())
+
+      var finished = false
+
+      lateinit var discoveryListener:
+        NsdManager.DiscoveryListener
+
+      fun resolveServices(
+        services: List<NsdServiceInfo>,
+        index: Int = 0
+      ) {
+        if (index >= services.size) {
+          finished = true
+          promise.resolve(results)
+          return
+        }
+
+        val service = services[index]
+
+        try {
+          nsdManager.resolveService(
+            service,
+            object : NsdManager.ResolveListener {
+
+              override fun onResolveFailed(
+                serviceInfo: NsdServiceInfo,
+                errorCode: Int
+              ) {
+                resolveServices(
+                  services,
+                  index + 1
+                )
+              }
+
+              override fun onServiceResolved(
+                serviceInfo: NsdServiceInfo
+              ) {
+                val trayId =
+                  serviceInfo.attributes["id"]
+                    ?.toString(Charsets.UTF_8)
+                    ?.trim()
+
+                val serviceVersion =
+                  serviceInfo.attributes["ver"]
+                    ?.toString(Charsets.UTF_8)
+                    ?.trim()
+
+                if (!trayId.isNullOrBlank()) {
+                  results.add(
+                    mapOf(
+                      "trayId" to trayId,
+                      "displayName" to
+                        serviceInfo.serviceName,
+                      "provisioningName" to
+                        "PROV_HR_$trayId",
+                      "hostname" to
+                        "hiddenrolls-${trayId.lowercase()}.local",
+                      "port" to
+                        serviceInfo.port,
+                      "serviceVersion" to
+                        (serviceVersion ?: "")
+                    )
+                  )
+                }
+
+                resolveServices(
+                  services,
+                  index + 1
+                )
+              }
+            }
+          )
+        } catch (_: Exception) {
+          resolveServices(
+            services,
+            index + 1
+          )
+        }
+      }
+
+      discoveryListener =
+        object : NsdManager.DiscoveryListener {
+
+          override fun onDiscoveryStarted(
+            serviceType: String
+          ) {
+            // Discovery successfully started.
+          }
+
+          override fun onServiceFound(
+            serviceInfo: NsdServiceInfo
+          ) {
+            discoveredServices[
+              serviceInfo.serviceName
+            ] = serviceInfo
+          }
+
+          override fun onServiceLost(
+            serviceInfo: NsdServiceInfo
+          ) {
+            discoveredServices.remove(
+              serviceInfo.serviceName
+            )
+          }
+
+          override fun onDiscoveryStopped(
+            serviceType: String
+          ) {
+            // Discovery stopped intentionally.
+          }
+
+          override fun onStartDiscoveryFailed(
+            serviceType: String,
+            errorCode: Int
+          ) {
+            if (finished) {
+              return
+            }
+
+            finished = true
+
+            try {
+              nsdManager.stopServiceDiscovery(
+                discoveryListener
+              )
+            } catch (_: Exception) {
+              // Discovery may not have started.
+            }
+
+            promise.reject(
+              "ERR_NSD_DISCOVERY_START",
+              "Hidden Rolls tray discovery could not be started. Error code: $errorCode",
+              null
+            )
+          }
+
+          override fun onStopDiscoveryFailed(
+            serviceType: String,
+            errorCode: Int
+          ) {
+            // Resolution can still continue with
+            // services already discovered.
+          }
+        }
+
+      try {
+        nsdManager.discoverServices(
+          serviceType,
+          NsdManager.PROTOCOL_DNS_SD,
+          discoveryListener
+        )
+      } catch (error: Exception) {
+        finished = true
+
+        promise.reject(
+          "ERR_NSD_DISCOVERY",
+          "Hidden Rolls tray discovery could not be started.",
+          error
+        )
+
+        return@AsyncFunction
+      }
+
+      handler.postDelayed(
+        {
+          if (finished) {
+            return@postDelayed
+          }
+
+          try {
+            nsdManager.stopServiceDiscovery(
+              discoveryListener
+            )
+          } catch (_: Exception) {
+            // Continue with anything already found.
+          }
+
+          val services =
+            discoveredServices.values.toList()
+
+          if (services.isEmpty()) {
+            finished = true
+            promise.resolve(emptyList<Any>())
+          } else {
+            resolveServices(services)
+          }
+        },
+        5000
+      )
+    }
 
     /**
      * AsyncFunction: findTray
