@@ -2,10 +2,8 @@
  * cameraService.js
  *
  * Service layer for HTTP communication with the ESP32-CAM device.
- * Provides:
- * - Connection verification (ping/status checks)
- * - Light intensity control via HTTP requests
- * - Timeout handling and error recovery
+ * Provides connection verification, tray identity checks, light control,
+ * and polling while a tray returns to the network after provisioning.
  *
  * All methods return result objects instead of throwing errors,
  * allowing screens to decide how to present failures.
@@ -17,7 +15,7 @@ import {
   buildCameraStatusUrl,
 } from "../config/camera";
 
-// Default timeout for all HTTP requests to the camera
+// Default timeout for camera HTTP requests.
 const DEFAULT_TIMEOUT_MS = 5000;
 
 /**
@@ -223,12 +221,12 @@ export async function setCameraLight(
   return setCameraLightIntensity(intensity, options);
 }
 
-// Helper function to pause execution for a given number of milliseconds.
+// Pause between reachability checks during tray startup.
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Waits for the tray to become reachable over Wi-Fi after provisioning.
+// Wait for the tray to become reachable after Wi-Fi credentials are applied.
 export async function waitForTrayReady(
   hostname,
   {

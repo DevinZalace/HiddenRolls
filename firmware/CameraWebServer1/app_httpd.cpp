@@ -23,10 +23,11 @@
 #include "camera_index.h"
 #include "board_config.h"
 #include "tray_config.h"
+#include "WiFi.h"
 
 // HTTP handlers and streaming logic for the camera firmware.
-// These endpoints serve the embedded control page and the live video feed
-// used by the mobile application.
+// The control server exposes camera status, capture, lighting, and reset
+// endpoints; a second server exposes the MJPEG stream.
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
@@ -689,10 +690,130 @@ static esp_err_t index_handler(httpd_req_t *req) {
   }
 }
 
-// Register the camera routes and start separate HTTP servers for the control
-// UI and the stream endpoint. Keeping them on separate ports allows both
-// interfaces to operate without interfering with one another.
+// Authorize a reset using the proof of possession from the tray QR code.
+static bool has_valid_provisioning_pop(
+  httpd_req_t *req
+) {
+  const char *headerName =
+    "X-Hidden-Rolls-PoP";
+
+  size_t headerLength =
+    httpd_req_get_hdr_value_len(
+      req,
+      headerName
+    );
+
+  if (
+    headerLength == 0 ||
+    headerLength >= 128
+  ) {
+    return false;
+  }
+
+  char providedPop[128];
+
+  if (
+    httpd_req_get_hdr_value_str(
+      req,
+      headerName,
+      providedPop,
+      sizeof(providedPop)
+    ) != ESP_OK
+  ) {
+    return false;
+  }
+
+  return strcmp(
+    providedPop,
+    HR_PROV_POP
+  ) == 0;
+}
+
+static esp_err_t reset_wifi_handler(
+  httpd_req_t *req
+) {
+  if (!has_valid_provisioning_pop(req)) {
+    httpd_resp_set_status(
+      req,
+      "403 Forbidden"
+    );
+
+    httpd_resp_set_type(
+      req,
+      "application/json"
+    );
+
+    return httpd_resp_sendstr(
+      req,
+      "{\"error\":\"forbidden\"}"
+    );
+  }
+
+  Serial.println(
+    "Authorized Wi-Fi reset requested."
+  );
+
+  httpd_resp_set_status(
+    req,
+    "202 Accepted"
+  );
+
+  httpd_resp_set_type(
+    req,
+    "application/json"
+  );
+
+  esp_err_t response =
+    httpd_resp_sendstr(
+      req,
+      "{\"resetting\":true}"
+    );
+
+  if (response != ESP_OK) {
+    return response;
+  }
+
+  // Give the HTTP response time to reach
+  // the phone before disconnecting Wi-Fi.
+  delay(500);
+
+  const bool erased =
+    WiFi.disconnect(false, true);
+
+  if (erased) {
+    Serial.println(
+      "Saved Wi-Fi credentials erased."
+    );
+  } else {
+    Serial.println(
+      "Failed to erase saved Wi-Fi credentials."
+    );
+  }
+
+  delay(500);
+
+  ESP.restart();
+
+  return ESP_OK;
+}
+
+// Register the control and stream routes on separate HTTP servers so the
+// long-lived MJPEG connection does not block control requests.
 void startCameraServer() {
+
+  httpd_uri_t reset_wifi_uri = {
+  .uri = "/reset-wifi",
+  .method = HTTP_POST,
+  .handler = reset_wifi_handler,
+  .user_ctx = NULL
+#ifdef CONFIG_HTTPD_WS_SUPPORT
+  ,
+  .is_websocket = false,
+  .handle_ws_control_frames = false,
+  .supported_subprotocol = NULL
+#endif
+};
+
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.max_uri_handlers = 16;
 
@@ -843,6 +964,7 @@ void startCameraServer() {
 
   log_i("Starting web server on port: '%u'", config.server_port);
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
+    httpd_register_uri_handler(camera_httpd, &reset_wifi_uri);
     httpd_register_uri_handler(camera_httpd, &index_uri);
     httpd_register_uri_handler(camera_httpd, &cmd_uri);
     httpd_register_uri_handler(camera_httpd, &status_uri);

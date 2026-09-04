@@ -12,14 +12,10 @@
 // ===========================
 #include "board_config.h"
 
-// Main startup sequence for the Hidden Rolls firmware.
-//
-// Networking and any required BLE provisioning are completed before camera
-// initialization so provisioning resources can be released before the camera
-// requests its DMA-capable memory.
-//
-// After Wi-Fi is ready, the firmware initializes the camera and exposes the
-// HTTP and mDNS services used by the Hidden Rolls companion app.
+// Firmware startup sequence for a Hidden Rolls camera tray.
+// Network credentials are loaded or provisioned before camera initialization
+// so BLE provisioning can release memory before the camera allocates buffers.
+// Once Wi-Fi is ready, the firmware starts the camera HTTP and mDNS services.
 
 
 void startCameraServer();
@@ -34,7 +30,7 @@ enum class NetworkStartupMode {
 
 NetworkStartupMode networkStartupMode =
     NetworkStartupMode::Unknown;
-// Receives provisioning and Wi-Fi events from the Arduino ESP32 framework.
+// Track provisioning progress and log network events from the Arduino framework.
 void onProvisioningEvent(arduino_event_t *event) {
   switch (event->event_id) {
 

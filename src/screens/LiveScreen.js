@@ -23,7 +23,6 @@ import {
 } from "../../services/cameraService";
 import { styles } from "../theme/styles";
 
-// Build the MJPEG stream URL for the camera
 /**
  * LiveScreen Component
  *
@@ -39,33 +38,32 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
 
   // ===== Stream State =====
   const [streamError, setStreamError] = useState(false);
-  // If true, WebView failed to load; show reload button
+  // Set after consecutive health checks fail.
 
   const [streamReloadKey, setStreamReloadKey] = useState(0);
-  // Used to force WebView reload by changing key
+  // Changing the key recreates the WebView after a retry.
 
   // ===== Light Control State =====
   const [lightIsChanging, setLightIsChanging] = useState(false);
-  // Loading state while sending light control request
+  // Prevent overlapping light-control requests.
 
   const [lightIntensity, setLightIntensity] = useState(
     CAMERA_CONFIG.lightMinimumIntensity
   );
-  // Current light level (0-255)
+  // Last intensity confirmed by the tray.
 
   const [sliderValue, setSliderValue] = useState(
     CAMERA_CONFIG.lightMinimumIntensity
   );
-  // Slider UI state (may differ from actual intensity while dragging)
+  // Slider value shown while the user adjusts brightness.
 
   const [lastNonZeroIntensity, setLastNonZeroIntensity] = useState(
     CAMERA_CONFIG.lightDefaultIntensity
   );
-  // Remember last brightness before turning light off
-  // Used to restore to previous level when turning light back on
+  // Restore this value when the light is turned on again.
 
   const isAdjustingLight = useRef(false);
-  // Flag to optimize slider behavior while user is dragging
+  // Avoid overwriting the slider while a drag is in progress.
 
   /**
    * Toggles camera light on/off.
@@ -179,7 +177,6 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
   let consecutiveFailures = 0;
 
   async function checkCameraHealth() {
-    
     const result = await checkCameraConnection({
       host: cameraHost,
       timeoutMs: 2000,

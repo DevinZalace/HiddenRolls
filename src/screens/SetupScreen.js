@@ -1,10 +1,8 @@
 /**
  * SetupScreen.js
  *
- * Setup screen where users:
- * - Select their language preference (English/Spanish)
- * - Check Bluetooth status and request permissions if needed
- * - Begin the tray provisioning flow
+ * Setup screen where users choose a language and verify Bluetooth readiness
+ * before entering the QR-based tray provisioning flow.
  *
  * This is the first step after accepting terms.
  */
@@ -28,13 +26,11 @@ import {
  * - setLanguage: Function to change language
  */
 export function SetupScreen({ navigation, t, language, setLanguage }) {
-  // Loading state while checking Bluetooth availability
+  // Prevent duplicate readiness checks while permissions are being evaluated.
   const [checkingBluetooth, setCheckingBluetooth] = useState(false);
 
   /**
-   * Handles Connect button press.
-   * Checks Bluetooth support, permissions, and enabled state.
-   * Navigates to QR scanning screen if all checks pass.
+  * Verifies Bluetooth readiness before opening the QR scanning screen.
    */
   async function handleConnect() {
     if (checkingBluetooth) {
@@ -44,10 +40,10 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
     setCheckingBluetooth(true);
 
     try {
-      // Check current Bluetooth status
+      // Read the current adapter and permission state.
       let bluetoothStatus = getBluetoothStatus();
 
-      // Check 1: Device supports Bluetooth
+      // BLE hardware is required for tray setup.
       if (!bluetoothStatus.supported) {
         Alert.alert(
           t.bluetoothUnavailableTitle,
@@ -56,7 +52,7 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
         return;
       }
 
-      // Check 2: Request permissions if not granted
+      // Request platform-specific BLE permissions when necessary.
       if (!bluetoothStatus.permissionsGranted) {
         bluetoothStatus = await requestBluetoothPermissions();
       }
@@ -69,13 +65,13 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
         return;
       }
 
-      // Check 3: Bluetooth is enabled on device
+      // The adapter must be enabled before scanning can begin.
       if (!bluetoothStatus.enabled) {
         Alert.alert(t.bluetoothOffTitle, t.bluetoothOffBody);
         return;
       }
 
-      // All checks passed - proceed to QR scanning
+      // All prerequisites passed; continue to QR scanning.
       navigation.navigate("ScanTray");
     } catch (error) {
       console.error("Bluetooth readiness check failed:", error);

@@ -1,18 +1,15 @@
 /**
  * camera.js
  *
- * Central configuration for the ESP32-CAM device communication.
- * Contains:
- * - Network settings (host, ports, paths)
- * - Light control settings (min/max intensity, default level)
- * - URL builder functions for HTTP requests
+ * Central configuration for HTTP communication with a Hidden Rolls tray.
+ * Contains endpoint ports and paths, light limits, and URL builders.
  *
  * The camera communicates via HTTP on three ports:
  * - 80: Status checking and light control
  * - 81: MJPEG video stream
  *
- * The default mDNS hostname (hiddenrolls-*.local) is device-specific.
- * A fallback IP address is provided for environments without mDNS support.
+ * Tray hostnames are device-specific mDNS names such as
+ * hiddenrolls-abc123.local. A caller may supply an IP address instead.
  */
 
 export const CAMERA_CONFIG = {
@@ -34,8 +31,8 @@ export const CAMERA_CONFIG = {
 /**
  * Builds the complete URL used to display the ESP32-CAM video stream.
  *
- * A different host can be supplied later for discovery, testing,
- * or support for multiple HiddenRolls devices.
+ * The host is supplied by the paired-tray record so multiple trays can be
+ * supported without changing this configuration.
  */
 export function buildCameraStreamUrl(host) {
   if (!host) {
