@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   TextInput,
+  Alert,
 } from "react-native";
 import {
   CameraView,
@@ -15,7 +16,7 @@ import {
   verifyHiddenRollsTray,
   waitForTrayReady,
 } from "../../services/cameraService";
-import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi } from "../../services/provisioningService";
+import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi, resetTrayWifi, } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
 import {
   savePairedTray,
@@ -70,6 +71,13 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
   // Finalization state after provisioning
   const [finalizingSetup, setFinalizingSetup] = useState(false);
   const [finalizationError, setFinalizationError] = useState(null);
+
+  // Tray Wi-Fi reset state
+  const [resettingTrayWifi, setResettingTrayWifi] =
+    useState(false);
+
+  const [resetWifiError, setResetWifiError] =
+    useState(null);
 
   /**
    * Initiates Bluetooth discovery of the tray.
@@ -201,6 +209,73 @@ async function handleUseExistingTray() {
       error
     );
   }
+}
+
+// Handles the user-initiated Wi-Fi reset for the tray.
+function handleResetTrayWifi() {
+  if (resettingTrayWifi) {
+    return;
+  }
+
+  Alert.alert(
+    "Reset Wi-Fi?",
+    `This will remove the Wi-Fi network saved on Hidden Rolls ${pendingTray?.trayId} and restart the tray. You will need to set up Wi-Fi again.`,
+    [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "Reset & Continue",
+        style: "destructive",
+        onPress: async () => {
+          setResettingTrayWifi(true);
+          setResetWifiError(null);
+
+          try {
+            await resetTrayWifi();
+
+            // The tray accepted the request and is restarting.
+            setTraySetupState("checking");
+
+            // Give the ESP32 time to reboot into BLE provisioning mode.
+            await new Promise((resolve) =>
+              setTimeout(resolve, 3000)
+            );
+
+            try {
+              await findTray();
+
+              setTrayFoundOverBle(true);
+              setTraySetupState("ready");
+            } catch (error) {
+              console.error(
+                "Tray restarted but was not found over Bluetooth:",
+                error
+              );
+
+              setTraySetupState("unreachable");
+
+              setResetWifiError(
+                "The tray restarted, but Hidden Rolls could not find it over Bluetooth yet. Try Find Tray again."
+              );
+            }
+          } catch (error) {
+            console.error(
+              "Wi-Fi reset failed:",
+              error
+            );
+
+            setResetWifiError(
+              "Hidden Rolls could not reset this tray's Wi-Fi."
+            );
+          } finally {
+            setResettingTrayWifi(false);
+          }
+        },
+      },
+    ]
+  );
 }
 
   /**
@@ -337,7 +412,6 @@ async function handleUseExistingTray() {
 
     setScanningWifi(false);
     setWifiNetworks([]);
-    setWifiScanError(null);
     setSelectedNetwork(null);
 
     setWifiPassword("");
@@ -349,6 +423,9 @@ async function handleUseExistingTray() {
     setFinalizationError(null);
 
     setTraySetupState("idle");
+
+    setResettingTrayWifi(false);
+    setResetWifiError(null);
   }
 
   // Loading state: Camera permission is being checked
@@ -434,6 +511,26 @@ async function handleUseExistingTray() {
                   Use This Tray
                 </Text>
               </Pressable>
+              <Pressable
+                style={[
+                  styles.primaryBtn,
+                  { marginTop: 10 },
+                  resettingTrayWifi && { opacity: 0.6 },
+                ]}
+                onPress={handleResetTrayWifi}
+                disabled={resettingTrayWifi}
+              >
+                <Text style={styles.primaryBtnText}>
+                  {resettingTrayWifi
+                    ? "Resetting Tray..."
+                    : "Reset Wi-Fi & Set Up Again"}
+                </Text>
+              </Pressable>
+              {resetWifiError ? (
+                <Text style={styles.helpBody}>
+                  {resetWifiError}
+                </Text>
+              ) : null}
             </>
           ) : null}
 

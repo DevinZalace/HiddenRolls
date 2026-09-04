@@ -83,3 +83,16 @@ export function provisionWifi(ssid, password) {
 export function findExistingTrays() {
   return HiddenRollsProvisioning.findExistingTrays();
 }
+
+/**
+ * Clears the Wi-Fi credentials saved on a scanned tray.
+ * Requires ownership proof retained by the native module
+ * from the tray QR code.
+ *
+ * @param {string} hostname
+ * @returns {Promise<object>}
+ */
+export function resetTrayWifi() {
+  return HiddenRollsProvisioning.resetTrayWifi();
+
+}

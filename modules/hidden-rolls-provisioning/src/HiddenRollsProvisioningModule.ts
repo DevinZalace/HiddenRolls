@@ -42,6 +42,10 @@ export type ExistingTrayDiscoveryResult = {
   serviceVersion: string;
 };
 
+export type WifiResetResult = {
+  resetting: boolean;
+};
+
 declare class HiddenRollsProvisioningModule extends NativeModule {
   parseQr(payload: string): ParsedTray;
 
@@ -63,6 +67,8 @@ declare class HiddenRollsProvisioningModule extends NativeModule {
     ssid: string,
     password: string
     ): Promise<WifiProvisionResult>;
+
+  resetTrayWifi(): Promise<WifiResetResult>;
 
 }
 

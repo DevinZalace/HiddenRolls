@@ -29,6 +29,9 @@ import com.espressif.provisioning.WiFiAccessPoint
 import com.espressif.provisioning.listeners.WiFiScanListener
 import com.espressif.provisioning.listeners.ProvisionListener
 
+import java.net.HttpURLConnection
+import java.net.URL
+
 /**
  * HiddenRollsProvisioningModule
  *
@@ -44,6 +47,11 @@ import com.espressif.provisioning.listeners.ProvisionListener
 class HiddenRollsProvisioningModule : Module() {
   // The current tray device being provisioned
   private var espDevice: ESPDevice? = null
+  // Proof of possession from the most recently scanned tray QR code.
+  // Kept only in native memory so it is not exposed to JavaScript.
+  private var currentProofOfPossession: String? = null
+  private var currentTrayId: String? = null
+  private var currentTrayHostname: String? = null
   // Promise for the active connection attempt
   private var connectionPromise: Promise? = null
 
@@ -418,6 +426,86 @@ class HiddenRollsProvisioningModule : Module() {
         },
         5000
       )
+    }
+
+    /**
+   * resets tray wifi if needed
+   */
+    AsyncFunction("resetTrayWifi") { promise: Promise ->
+      val hostname =
+        currentTrayHostname
+
+      val proofOfPossession =
+        currentProofOfPossession
+
+      if (
+        hostname.isNullOrBlank() ||
+        proofOfPossession.isNullOrBlank()
+      ) {
+        promise.reject(
+          "ERR_NO_SELECTED_TRAY",
+          "Scan a Hidden Rolls tray before resetting Wi-Fi.",
+          null
+        )
+
+        return@AsyncFunction
+      }
+
+      Thread {
+        var connection:
+          HttpURLConnection? = null
+
+        try {
+          val url =
+            URL(
+              "http://$hostname/reset-wifi"
+            )
+
+          connection =
+            url.openConnection()
+              as HttpURLConnection
+
+          connection.requestMethod = "POST"
+          connection.connectTimeout = 3000
+          connection.readTimeout = 3000
+          connection.doOutput = false
+
+          connection.setRequestProperty(
+            "X-Hidden-Rolls-PoP",
+            proofOfPossession
+          )
+
+          val responseCode =
+            connection.responseCode
+
+          if (
+            responseCode !=
+            HttpURLConnection.HTTP_ACCEPTED
+          ) {
+            promise.reject(
+              "ERR_WIFI_RESET_REJECTED",
+              "The tray rejected the Wi-Fi reset request.",
+              null
+            )
+
+            return@Thread
+          }
+
+          promise.resolve(
+            mapOf(
+              "resetting" to true
+            )
+          )
+        } catch (error: Exception) {
+          promise.reject(
+            "ERR_WIFI_RESET",
+            "Hidden Rolls could not reset the tray Wi-Fi configuration.",
+            error
+          )
+        } finally {
+          connection?.disconnect()
+        }
+      }.start()
     }
 
     /**
@@ -1008,9 +1096,12 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
      * Returns tray ID, provisioning name, and hostname for the discovered device.
      */
     Function("parseQr") { payload: String ->
+        currentProofOfPossession = null
+        currentTrayId = null
+        currentTrayHostname = null
+        espDevice = null
         // Extract and validate QR data
         val qrData = JSONObject(payload)
-
         val version = qrData.optString("ver")
         val provisioningName = qrData.optString("name")
         val proofOfPossession = qrData.optString("pop")
@@ -1029,6 +1120,9 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
         require(proofOfPossession.isNotBlank()) {
           "Provisioning QR is missing proof of possession."
         }
+
+        currentProofOfPossession =
+          proofOfPossession
 
         require(transport.equals("ble", ignoreCase = true)) {
           "HiddenRolls requires BLE provisioning."
@@ -1057,10 +1151,22 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
         // Extract tray ID from provisioning name (e.g., "PROV_HR_ABC123" -> "ABC123")
         val trayId = provisioningName.removePrefix("PROV_HR_")
 
+        val hostname =
+          "hiddenrolls-${trayId.lowercase()}.local"
+
+        currentProofOfPossession =
+          proofOfPossession
+
+        currentTrayId =
+          trayId
+
+        currentTrayHostname =
+          hostname
+
         mapOf(
           "trayId" to trayId,
           "provisioningName" to provisioningName,
-          "hostname" to "hiddenrolls-${trayId.lowercase()}.local",
+          "hostname" to hostname,
           "transport" to "ble",
           "security" to 1
         )
