@@ -33,12 +33,25 @@ export type WifiProvisionResult = {
   provisioned: boolean;
 };
 
+export type ExistingTrayDiscoveryResult = {
+  trayId: string;
+  displayName: string;
+  provisioningName: string;
+  hostname: string;
+  port: number;
+  serviceVersion: string;
+};
+
 declare class HiddenRollsProvisioningModule extends NativeModule {
   parseQr(payload: string): ParsedTray;
 
   getBluetoothStatus(): BluetoothStatus;
 
   requestBluetoothPermissions(): Promise<unknown>;
+
+  findExistingTrays(): Promise<
+    ExistingTrayDiscoveryResult[]
+  >;
 
   findTray(): Promise<TrayDiscoveryResult>;
 
@@ -47,9 +60,10 @@ declare class HiddenRollsProvisioningModule extends NativeModule {
   scanWifiNetworks(): Promise<WifiNetwork[]>;
 
   provisionWifi(
-  ssid: string,
-  password: string
-): Promise<WifiProvisionResult>;
+    ssid: string,
+    password: string
+    ): Promise<WifiProvisionResult>;
+
 }
 
 const HiddenRollsProvisioning =

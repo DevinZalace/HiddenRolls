@@ -76,3 +76,10 @@ export function scanWifiNetworks() {
 export function provisionWifi(ssid, password) {
   return HiddenRollsProvisioning.provisionWifi(ssid, password);
 }
+/**
+ * Scans for existing trays on the network
+ * @returns {Promise<array>} List of discovered trays
+ */
+export function findExistingTrays() {
+  return HiddenRollsProvisioning.findExistingTrays();
+}
