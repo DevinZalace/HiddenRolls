@@ -179,7 +179,6 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
   let consecutiveFailures = 0;
 
   async function checkCameraHealth() {
-    
     const result = await checkCameraConnection({
       host: cameraHost,
       timeoutMs: 2000,

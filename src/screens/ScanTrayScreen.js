@@ -11,7 +11,10 @@ import {
   useCameraPermissions,
 } from "expo-camera";
 
-import { waitForTrayReady } from "../../services/cameraService";
+import {
+  verifyHiddenRollsTray,
+  waitForTrayReady,
+} from "../../services/cameraService";
 import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
 import {
@@ -37,6 +40,10 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
   // QR code scanning state
   const [scanned, setScanned] = useState(false);
   const [scanError, setScanError] = useState(null);
+
+  // Tray setup state (idle, checking, existing, ready, unreachable)
+  const [traySetupState, setTraySetupState] =
+  useState("idle");
 
   // Bluetooth tray discovery state
   const [findingTray, setFindingTray] = useState(false);
@@ -69,51 +76,132 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
    * Calls the native provisioning service to scan for the device.
    */
   async function handleFindTray() {
-    if (findingTray) {
-      return;
-    }
-
-    setFindingTray(true);
-    setDiscoveryError(null);
-
-    try {
-      await findTray();
-      setTrayFoundOverBle(true);
-    } catch (error) {
-      console.error("BLE tray discovery failed:", error);
-
-      setDiscoveryError(
-        "Hidden Rolls could not find this tray nearby. Make sure the tray is powered on and ready for setup."
-      );
-    } finally {
-      setFindingTray(false);
-    }
+  if (findingTray) {
+    return;
   }
+
+  setFindingTray(true);
+  setDiscoveryError(null);
+
+  try {
+    await findTray();
+
+    setTrayFoundOverBle(true);
+    setTraySetupState("ready");
+  } catch (error) {
+    console.error(
+      "BLE tray discovery failed:",
+      error
+    );
+
+    setTraySetupState("unreachable");
+
+    setDiscoveryError(
+      "Hidden Rolls could not find this tray nearby. Make sure the tray is powered on and ready for setup."
+    );
+  } finally {
+    setFindingTray(false);
+  }
+}
 
   /**
    * Processes a scanned QR code.
    * Parses the QR data and stores the tray information.
    * Prevents multiple scans in quick succession.
    */
-  function handleBarcodeScanned({ data }) {
-    if (scanned) {
+  async function handleBarcodeScanned({ data }) {
+  if (scanned) {
+    return;
+  }
+
+  setScanned(true);
+  setScanError(null);
+  setDiscoveryError(null);
+  setTraySetupState("checking");
+
+  try {
+    const tray = parseTrayQr(data);
+
+    setPendingTray(tray);
+
+    // First determine whether this exact tray is already
+    // configured and reachable over the local network.
+    const alreadyConfigured =
+      await verifyHiddenRollsTray(tray);
+
+    if (alreadyConfigured) {
+      setTraySetupState("existing");
       return;
     }
 
-    setScanned(true);
-    setScanError(null);
-
+    // The tray is not reachable over Wi-Fi.
+    // Check whether it is advertising its BLE provisioning service.
     try {
-      const tray = parseTrayQr(data);
-      setPendingTray(tray);
-    } catch (error) {
-      console.error("Tray QR parsing failed:", error);
+      await findTray();
 
-      setScanError(
-        "This QR code is not a valid Hidden Rolls tray."
+      setTrayFoundOverBle(true);
+      setTraySetupState("ready");
+    } catch (error) {
+      console.error(
+        "Tray was not found over Wi-Fi or Bluetooth:",
+        error
       );
+
+      setTraySetupState("unreachable");
     }
+  } catch (error) {
+    console.error(
+      "Tray QR parsing failed:",
+      error
+    );
+
+    setPendingTray(null);
+    setScanned(false);
+    setTraySetupState("idle");
+
+    setScanError(
+      "This QR code is not a valid Hidden Rolls tray."
+    );
   }
+}
+
+  /**
+   * Uses the existing tray configuration.
+   * Saves it as a paired tray and navigates to the live view.
+   */
+async function handleUseExistingTray() {
+  if (!pendingTray) {
+    return;
+  }
+
+  const pairedTray = {
+    schemaVersion: 1,
+    trayId: pendingTray.trayId,
+    displayName:
+      `Hidden Rolls ${pendingTray.trayId}`,
+    hostname: pendingTray.hostname,
+    provisioningName:
+      pendingTray.provisioningName,
+    pairedAt: new Date().toISOString(),
+  };
+
+  try {
+    await savePairedTray(pairedTray);
+
+    setPairedTray(pairedTray);
+    setPendingTray(null);
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Live" }],
+    });
+  } catch (error) {
+    console.error(
+      "Failed to save existing tray:",
+      error
+    );
+  }
+}
 
   /**
    * Attempts to establish a Bluetooth connection to the discovered tray.
@@ -259,6 +347,8 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
 
     setFinalizingSetup(false);
     setFinalizationError(null);
+
+    setTraySetupState("idle");
   }
 
   // Loading state: Camera permission is being checked
@@ -321,9 +411,47 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
           <Text style={styles.helpBody}>
             {pendingTray.hostname}
           </Text>
+          {traySetupState === "checking" ? (
+            <Text style={styles.helpBody}>
+              Checking tray...
+            </Text>
+          ) : null}
+
+          {traySetupState === "existing" ? (
+            <>
+              <Text style={styles.helpBody}>
+                This tray is already connected to Wi-Fi.
+              </Text>
+
+              <Pressable
+                style={[
+                  styles.primaryBtn,
+                  { marginTop: 14 },
+                ]}
+                onPress={handleUseExistingTray}
+              >
+                <Text style={styles.primaryBtnText}>
+                  Use This Tray
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+
+          {traySetupState === "ready" ? (
+            <Text style={styles.helpBody}>
+              This tray is ready for setup.
+            </Text>
+          ) : null}
+
+          {traySetupState === "unreachable" ? (
+            <Text style={styles.helpBody}>
+              Hidden Rolls could not reach this tray over Wi-Fi or Bluetooth.
+            </Text>
+          ) : null}
 
           {/* Step 1: Discover tray over Bluetooth */}
-          {!trayFoundOverBle ? (
+          {traySetupState === "unreachable" &&
+            !trayFoundOverBle ? (
             <Pressable
               style={[
                 styles.primaryBtn,
