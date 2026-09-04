@@ -2,98 +2,97 @@
 
 Hidden Rolls is a hardware-software prototype for a camera-equipped tabletop dice tray and its React Native companion app.
 
-The tray uses an ESP32-CAM to provide a live view of hidden dice rolls over a local Wi-Fi network. The companion app connects to the tray, displays the camera stream, monitors connection health, and controls the tray's built-in lighting.
-
-The project is currently expanding from a single development prototype toward a provisionable multi-device architecture, where each physical tray has its own identity and can be configured for a customer's Wi-Fi network without hard-coded credentials.
+The tray uses an ESP32-CAM to provide a live view of hidden dice rolls over a local Wi-Fi network. The companion app handles tray setup, local discovery, persistent pairing, live video, connection monitoring, and physical light control.
 
 ## Features
 
 ### Companion App
 
 - Live ESP32-CAM MJPEG video feed
-- Local tray connection through mDNS
-- Real connection health checks
-- Automatic connection retries
-- Camera disconnection detection
-- Stream recovery after reconnecting
+- Tray-specific QR code onboarding
+- Bluetooth tray discovery and connection
+- Wi-Fi network scanning and credential provisioning
+- Persistent paired-tray storage across app restarts
+- mDNS discovery of already-configured trays
+- Recovery of forgotten app pairings without repeating setup
+- Detection of trays already connected to Wi-Fi
+- Option to reuse or reset and reprovision an existing tray
+- Real connection health checks and stream recovery
 - Physical light on/off control
 - Adjustable LED brightness
-- Synchronization with the tray's current light state
-- English and Spanish interface options
-- Separate landing, setup, connecting, and live-view screens
-- Tray-specific QR code scanning during setup
-- Bluetooth tray discovery and connection
-- Wi-Fi network scanning and secure credential provisioning
-- Automatic wait for the tray to become reachable after provisioning
-- Paired-tray routing to the live camera view
-- Centralized camera configuration and camera service logic
+- English and Spanish interface support
+- Tray-agnostic routing with no hard-coded device hostname or IP
 
 ### ESP32-CAM Firmware
 
 - Camera streaming over the local network
 - HTTP status and light-control endpoints
-- mDNS service advertising
 - BLE Wi-Fi provisioning
-- Espressif Security 1 proof-of-possession provisioning
-- Saved Wi-Fi credential reconnect on later boots
-- Automatic first-boot setup mode when no saved network exists
-- Per-tray provisioning identity
-- Per-tray mDNS hostname
-- Per-tray display name
-- Provisioning event and connection-state handling
-- Controlled release of BLE provisioning resources before camera initialization
-- Startup safeguards for provisioning cleanup and unavailable saved networks
+- Saved Wi-Fi credential reconnect
+- Automatic setup mode when no saved Wi-Fi exists
+- Per-tray provisioning identity and mDNS hostname
+- `_hiddenrolls._tcp` mDNS service advertising
+- Tray identity exposed through `/status`
+- Authenticated Wi-Fi reset and automatic reboot into provisioning mode
+- Controlled release of BLE resources before camera initialization
 
 ## Device Identity
 
-Each Hidden Rolls tray is designed to have its own six-character identifier.
+Each Hidden Rolls tray has its own six-character identifier, provisioning name, mDNS hostname, display name, and proof-of-possession secret.
 
-Each tray also receives its own proof-of-possession secret for secured BLE provisioning.
+Real per-device configuration is stored in `tray_config.h`, which is excluded from Git. A committed `tray_config.example.h` documents the expected structure without exposing device secrets.
 
-The real per-device configuration is stored in `tray_config.h`, which is excluded from Git. A `tray_config.example.h` file documents the expected structure without exposing device secrets.
+## Setup Flow
 
-## Provisioning Flow
+New trays can move from QR scan to live camera view without manually editing firmware or entering an IP address:
 
-The firmware now supports two startup paths.
+1. Scan the tray QR code.
+2. Find and connect to the tray over Bluetooth.
+3. Scan nearby Wi-Fi networks.
+4. Select a network and enter its password.
+5. Provision the tray.
+6. Wait for it to reconnect over Wi-Fi.
+7. Open the live camera view.
 
-1. New or Unconfigured Tray
-2. Previously Configured Tray
+If a scanned tray is already configured, the app can either reuse it immediately or reset its Wi-Fi credentials and run setup again.
 
-Provisioning is intentionally completed before camera initialization because both systems compete for limited ESP32 memory, including DMA-capable memory required by the camera.
+Already-configured trays can also be rediscovered over the local network using mDNS if the app pairing is lost.
 
-The mobile setup flow is:
-
-1. Accept the app terms and open tray setup.
-2. Grant camera and Bluetooth permissions.
-3. Scan the tray-specific QR code.
-4. Find and connect to the tray over Bluetooth.
-5. Scan Wi-Fi networks visible to the tray.
-6. Select a network and enter its password.
-7. Wait for the tray to reconnect over Wi-Fi.
-8. Open the live camera view using the paired tray's hostname.
+## Status
 
 Hidden Rolls is an active hardware-software prototype.
 
-The core physical tray system is working, including:
+Currently implemented and physically tested:
 
+- QR onboarding
+- Bluetooth provisioning
+- Wi-Fi setup and reconnect
+- Persistent pairing
+- LAN tray discovery
+- Existing-tray recovery
+- Wi-Fi reset and reprovisioning
 - Live camera streaming
-- Local network communication
 - Connection monitoring and recovery
-- Physical light control
-- Adjustable brightness
-- Firmware-side BLE Wi-Fi provisioning
-- Saved Wi-Fi reconnect
-- Per-tray device identity
-
-The consumer-facing onboarding flow is implemented in the mobile app. The project remains an active hardware-software prototype, and production hardening is still in progress.
+- Physical light and brightness control
 
 Planned work includes:
 
-- Improve recovery when a previously saved Wi-Fi network is unavailable
-- Support multiple production trays cleanly
-- Automatic dice recognition
+- Physical recovery for trays stranded on an unavailable Wi-Fi network
+- Multi-tray management
+- Production hardware and enclosure hardening
 
-The goal is a setup experience where a new tray can move from factory-fresh hardware to a working live camera feed without manually editing firmware or entering an IP address.
+## Built With
+
+- React Native
+- Expo
+- JavaScript / TypeScript
+- Kotlin
+- React Native WebView
+- AI Thinker ESP32-CAM
+- Arduino
+- Bluetooth Low Energy
+- MJPEG streaming
+- mDNS / DNS-SD
 
 ## Author
 
