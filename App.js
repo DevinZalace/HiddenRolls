@@ -6,8 +6,13 @@
  * 2. Connect to the camera over Wi-Fi
  * 3. View a live video stream with controllable lighting
  *
- * Navigation Flow:
- * Landing -> Setup -> ScanTray -> Connecting -> Live
+ * Navigation Flows:
+ *
+ * New tray:
+ * Landing -> Setup -> ScanTray -> Live
+ *
+ * Existing tray:
+ * Landing -> Live
  *
  * The app uses React Navigation for screen management and supports
  * multi-language localization (English and Spanish).
@@ -26,7 +31,6 @@ import { enableScreens } from "react-native-screens";
 import { copy } from "./src/localization/copy";
 import { styles } from "./src/theme/styles";
 import { SetupScreen } from "./src/screens/SetupScreen";
-import { ConnectingScreen } from "./src/screens/ConnectingScreen";
 import { LiveScreen } from "./src/screens/LiveScreen";
 import { LandingScreen } from "./src/screens/LandingScreen";
 import { ScanTrayScreen } from "./src/screens/ScanTrayScreen";
@@ -182,18 +186,7 @@ export default function App() {
           )}
         </Stack.Screen>
 
-        {/* ===== Screen 4: Connecting ===== */}
-        {/* Attempts to establish Wi-Fi connection to camera */}
-        <Stack.Screen name="Connecting">
-          {({ navigation }) => (
-            <ConnectingScreen
-              navigation={navigation}
-              t={t}
-            />
-          )}
-        </Stack.Screen>
-
-        {/* ===== Screen 5: Live ===== */}
+        {/* ===== Screen 4 Live ===== */}
         {/* Main live view with video stream and light control */}
         <Stack.Screen name="Live">
           {({ navigation }) => (
