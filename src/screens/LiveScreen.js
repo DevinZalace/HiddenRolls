@@ -36,7 +36,6 @@ import { styles } from "../theme/styles";
  */
 export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
   const cameraHost = pairedTray?.hostname;
-  const esp32StreamUrl = buildCameraStreamUrl(cameraHost);
 
   // ===== Stream State =====
   const [streamError, setStreamError] = useState(false);
@@ -172,11 +171,15 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
 }
 
   useEffect(() => {
+    if (!cameraHost) {
+    return;
+  }
   let isScreenActive = true;
   let nextCheckTimer = null;
   let consecutiveFailures = 0;
 
   async function checkCameraHealth() {
+    
     const result = await checkCameraConnection({
       host: cameraHost,
       timeoutMs: 2000,
@@ -281,6 +284,9 @@ if (!cameraHost) {
     </View>
   );
 }
+
+const esp32StreamUrl =
+  buildCameraStreamUrl(cameraHost);
 
   return (
     <View style={styles.liveRoot}>
