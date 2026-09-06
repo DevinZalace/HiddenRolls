@@ -110,7 +110,7 @@ void setup() {
 
 
   bool savedCredentialsExist = hasSavedWifiCredentials();
-// Initialize network provisioning before the camera.
+  // Initialize network provisioning before the camera.
   //
   // BLE provisioning requires internal memory, while camera initialization also
   // needs a sufficiently large contiguous DMA-capable allocation. Provisioning
