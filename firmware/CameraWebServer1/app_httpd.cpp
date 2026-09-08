@@ -224,7 +224,9 @@ static esp_err_t stream_handler(httpd_req_t *req) {
   esp_err_t res = ESP_OK;
   size_t _jpg_buf_len = 0;
   uint8_t *_jpg_buf = NULL;
-  char *part_buf[128];
+  // One contiguous buffer for the multipart header. This must be a char array,
+  // not an array of pointers, otherwise snprintf writes into the wrong memory.
+  char part_buf[128];
 
   static int64_t last_frame = 0;
   if (!last_frame) {
@@ -729,6 +731,37 @@ static bool has_valid_provisioning_pop(
   ) == 0;
 }
 
+// Reset the saved Wi-Fi credentials and restart the device into setup mode.
+static void resetSavedWifi() {
+  Serial.println(
+    "Erasing saved Wi-Fi credentials..."
+  );
+
+  const bool erased =
+    WiFi.disconnect(false, true);
+
+  if (erased) {
+    Serial.println(
+      "Saved Wi-Fi credentials erased."
+    );
+  } else {
+    Serial.println(
+      "Failed to erase saved Wi-Fi credentials."
+    );
+  }
+
+  delay(500);
+
+  Serial.println(
+    "Restarting into setup mode..."
+  );
+
+  ESP.restart();
+}
+
+// Handle HTTP requests to reset the saved Wi-Fi credentials.
+// The proof-of-possession header is checked before any erase takes place so a
+// random client cannot clear network state from the tray.
 static esp_err_t reset_wifi_handler(
   httpd_req_t *req
 ) {
@@ -773,26 +806,10 @@ static esp_err_t reset_wifi_handler(
     return response;
   }
 
-  // Give the HTTP response time to reach
-  // the phone before disconnecting Wi-Fi.
+  // Give the response time to reach the phone.
   delay(500);
 
-  const bool erased =
-    WiFi.disconnect(false, true);
-
-  if (erased) {
-    Serial.println(
-      "Saved Wi-Fi credentials erased."
-    );
-  } else {
-    Serial.println(
-      "Failed to erase saved Wi-Fi credentials."
-    );
-  }
-
-  delay(500);
-
-  ESP.restart();
+  resetSavedWifi();
 
   return ESP_OK;
 }

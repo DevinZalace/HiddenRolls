@@ -110,7 +110,7 @@ void setup() {
 
 
   bool savedCredentialsExist = hasSavedWifiCredentials();
-// Initialize network provisioning before the camera.
+  // Initialize network provisioning before the camera.
   //
   // BLE provisioning requires internal memory, while camera initialization also
   // needs a sufficiently large contiguous DMA-capable allocation. Provisioning
@@ -125,6 +125,9 @@ if (savedCredentialsExist) {
 
   WiFi.begin();
 } else {
+  networkStartupMode =
+      NetworkStartupMode::Provisioning;
+
   Serial.println(
     "No saved Wi-Fi credentials. Starting setup mode."
   );
@@ -144,7 +147,7 @@ if (savedCredentialsExist) {
     networkStartupMode ==
     NetworkStartupMode::SavedCredentials
   ) {
-    const unsigned long wifiTimeoutMs = 30000;
+    const unsigned long wifiTimeoutMs = 60000;
     const unsigned long connectionStartedAt = millis();
 
     while (WiFi.status() != WL_CONNECTED) {
@@ -169,12 +172,22 @@ if (savedCredentialsExist) {
     }
   }
   if (WiFi.status() != WL_CONNECTED) {
-      Serial.println(
-        "Recovery provisioning is required."
-      );
+    Serial.println(
+      "Saved Wi-Fi could not be reached."
+    );
 
-      return;
-    }
+    Serial.println(
+      "Clearing saved Wi-Fi and restarting into setup mode..."
+    );
+
+    WiFi.disconnect(false, true);
+
+    delay(500);
+
+    ESP.restart();
+
+    return;
+  }
   if (
       networkStartupMode == NetworkStartupMode::Provisioning ||
       networkStartupMode == NetworkStartupMode::ProvisioningCleanupComplete) {

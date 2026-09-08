@@ -70,11 +70,23 @@ declare class HiddenRollsProvisioningModule extends NativeModule {
   /** Find the QR-selected tray over BLE. */
   findTray(): Promise<TrayDiscoveryResult>;
 
+  /** Cancel active BLE discovery and its queued retries. */
+  cancelTrayDiscovery(): Promise<boolean>;
+
   /** Establish the secure BLE provisioning connection. */
   connectTray(): Promise<TrayConnectionResult>;
 
+  /** Cancel a pending BLE connection attempt. */
+  cancelTrayConnection(): Promise<boolean>;
+
   /** Scan for Wi-Fi networks visible to the connected tray. */
   scanWifiNetworks(): Promise<WifiNetwork[]>;
+
+  /** Cancel Wi-Fi scanning or provisioning and disconnect BLE. */
+  cancelTrayWifiOperation(): Promise<boolean>;
+
+  /** Stop setup work, disconnect BLE, and clear the selected tray. */
+  cancelTraySetup(): Promise<void>;
 
   /** Send selected Wi-Fi credentials to the connected tray. */
   provisionWifi(

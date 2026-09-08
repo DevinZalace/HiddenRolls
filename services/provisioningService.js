@@ -38,6 +38,20 @@ export function getBluetoothStatus() {
   return HiddenRollsProvisioning.getBluetoothStatus();
 }
 
+let setupCleanupPromise = null;
+
+export function cancelTraySetup() {
+  if (!setupCleanupPromise) {
+    setupCleanupPromise = Promise.resolve()
+      .then(() => HiddenRollsProvisioning.cancelTraySetup())
+      .finally(() => {
+        setupCleanupPromise = null;
+      });
+  }
+
+  return setupCleanupPromise;
+}
+
 /**
  * Prompts user for Bluetooth-related permissions
  * @returns {Promise<object>} Updated Bluetooth status
@@ -55,12 +69,22 @@ export function findTray() {
   return HiddenRollsProvisioning.findTray();
 }
 
+/** Cancel native BLE discovery, if one is active. */
+export function cancelTrayDiscovery() {
+  return HiddenRollsProvisioning.cancelTrayDiscovery();
+}
+
 /**
  * Establishes a Bluetooth connection to the discovered tray.
  * @returns {Promise<object>} Connection result
  */
 export function connectTray() {
   return HiddenRollsProvisioning.connectTray();
+}
+
+/** Cancel a pending native BLE connection attempt. */
+export function cancelTrayConnection() {
+  return HiddenRollsProvisioning.cancelTrayConnection();
 }
 
 /**
@@ -88,11 +112,15 @@ export function findExistingTrays() {
   return HiddenRollsProvisioning.findExistingTrays();
 }
 
+/** Cancel the active native Wi-Fi operation, if any. */
+export function cancelTrayWifiOperation() {
+  return HiddenRollsProvisioning.cancelTrayWifiOperation();
+}
+
 /**
  * Clears the Wi-Fi credentials saved on the tray identified by the last
  * scanned QR code. The native module supplies the retained proof of possession.
  *
- * @param {string} hostname
  * @returns {Promise<object>}
  */
 export function resetTrayWifi() {
