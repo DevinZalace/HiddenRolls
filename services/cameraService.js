@@ -82,16 +82,24 @@ export async function checkCameraConnection({
     clearTimeout(timeoutId);
   }
 }
-
+// Verifies that the tray is a Hidden Rolls device and matches the expected tray ID.
 export async function verifyHiddenRollsTray(
   tray,
-  timeoutMs = 3000
+  timeoutMs = 3000,
+  signal
 ) {
+  if (signal?.aborted) {
+    throw createSetupAbortError();
+  }
+
   if (!tray?.hostname || !tray?.trayId) {
     return false;
   }
 
   const controller = new AbortController();
+  const onAbort = () => controller.abort();
+
+  signal?.addEventListener("abort", onAbort);
 
   const timeout = setTimeout(() => {
     controller.abort();
@@ -99,11 +107,13 @@ export async function verifyHiddenRollsTray(
 
   try {
     const response = await fetch(
-      `http://${tray.hostname}/status`,
-      {
-        signal: controller.signal,
-      }
+      buildCameraStatusUrl(tray.hostname),
+      { signal: controller.signal }
     );
+
+    if (signal?.aborted) {
+      throw createSetupAbortError();
+    }
 
     if (!response.ok) {
       return false;
@@ -111,15 +121,24 @@ export async function verifyHiddenRollsTray(
 
     const status = await response.json();
 
+    if (signal?.aborted) {
+      throw createSetupAbortError();
+    }
+
     return (
       status?.device === "hiddenrolls" &&
       status?.tray_id === tray.trayId &&
       status?.schema === 1
     );
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) {
+      throw createSetupAbortError();
+    }
+
     return false;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -221,27 +240,64 @@ export async function setCameraLight(
   return setCameraLightIntensity(intensity, options);
 }
 
-// Pause between reachability checks during tray startup.
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Wait for the tray to become reachable after Wi-Fi credentials are applied.
+function createSetupAbortError() {
+  const error = new Error("Tray setup was cancelled.");
+  error.name = "AbortError";
+  return error;
 }
 
-// Wait for the tray to become reachable after Wi-Fi credentials are applied.
+// Wait between requests, but stop immediately if setup is cancelled.
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(createSetupAbortError());
+      return;
+    }
+
+    const onAbort = () => {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", onAbort);
+      reject(createSetupAbortError());
+    };
+
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+
+    signal?.addEventListener("abort", onAbort);
+  });
+}
+
+// Wait for the tray to return to Wi-Fi after provisioning.
 export async function waitForTrayReady(
   hostname,
   {
     timeoutMs = 60000,
     intervalMs = 1500,
+    signal,
   } = {}
 ) {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    const controller = new AbortController();
+    if (signal?.aborted) {
+      throw createSetupAbortError();
+    }
 
-    const requestTimeout = setTimeout(() => {
-      controller.abort();
-    }, 3000);
+    const controller = new AbortController();
+    const onAbort = () => controller.abort();
+
+    signal?.addEventListener("abort", onAbort);
+
+    const remainingMs =
+      timeoutMs - (Date.now() - startedAt);
+
+    const requestTimeout = setTimeout(
+      () => controller.abort(),
+      Math.min(3000, Math.max(0, remainingMs))
+    );
 
     try {
       const response = await fetch(
@@ -252,20 +308,42 @@ export async function waitForTrayReady(
         }
       );
 
+      if (signal?.aborted) {
+        throw createSetupAbortError();
+      }
+
       if (response.ok) {
         return true;
       }
-    } catch {
-      // Expected while the tray is tearing down BLE,
-      // starting the camera, or registering mDNS.
+    } catch (error) {
+      if (signal?.aborted) {
+        throw createSetupAbortError();
+      }
+
+      // An unavailable tray or request timeout can be retried.
     } finally {
       clearTimeout(requestTimeout);
+      signal?.removeEventListener("abort", onAbort);
     }
 
-    await sleep(intervalMs);
+    const delayRemainingMs =
+      timeoutMs - (Date.now() - startedAt);
+
+    if (delayRemainingMs <= 0) {
+      break;
+    }
+
+    await sleep(
+      Math.min(intervalMs, delayRemainingMs),
+      signal
+    );
+  }
+
+  if (signal?.aborted) {
+    throw createSetupAbortError();
   }
 
   throw new Error(
-    `${hostname} did not become reachable after provisioning.`
+    hostname + " did not become reachable after provisioning."
   );
 }

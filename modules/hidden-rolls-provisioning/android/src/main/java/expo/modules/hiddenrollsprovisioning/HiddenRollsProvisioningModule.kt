@@ -14,6 +14,7 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import expo.modules.interfaces.permissions.Permissions
 import expo.modules.kotlin.Promise
+import expo.modules.kotlin.functions.Queues
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanResult
 import android.os.Handler
@@ -52,6 +53,8 @@ class HiddenRollsProvisioningModule : Module() {
   private var currentTrayHostname: String? = null
   // Promise associated with the active BLE connection attempt.
   private var connectionPromise: Promise? = null
+  // Cleanup action belonging to the active BLE discovery.
+  private var cancelDiscoveryWork: (() -> Unit)? = null
 
   // Main-thread dispatcher required by the provisioning SDK.
   private val connectionHandler =
@@ -59,6 +62,18 @@ class HiddenRollsProvisioningModule : Module() {
 
   // Timeout callback for a pending BLE connection.
   private var connectionTimeout: Runnable? = null
+
+  // Queued action that starts the BLE connection.
+  private var connectionStart: Runnable? = null
+
+  // Cleanup action belonging to the pending connection.
+  private var cancelConnectionWork: (() -> Unit)? = null
+
+  // Cancellation action for Wi-Fi scanning or provisioning.
+  private var cancelWifiWork: (() -> Unit)? = null
+
+  // Cancellation action for mDNS existing tray discovery
+  private var cancelNsdDiscoveryWork: (() -> Unit)? = null
 
   /**
    * Returns the array of Bluetooth permissions required for this device's Android API level.
@@ -132,12 +147,18 @@ class HiddenRollsProvisioningModule : Module() {
    * - Unregistering from EventBus to stop listening for connection events
    */
   private fun finishConnectionAttempt() {
+    connectionStart?.let {
+      connectionHandler.removeCallbacks(it)
+    }
+
     connectionTimeout?.let {
       connectionHandler.removeCallbacks(it)
     }
 
+    connectionStart = null
     connectionTimeout = null
     connectionPromise = null
+    cancelConnectionWork = null
 
     val eventBus = EventBus.getDefault()
 
@@ -203,6 +224,16 @@ class HiddenRollsProvisioningModule : Module() {
     AsyncFunction("findExistingTrays") { promise: Promise ->
       val context = appContext.reactContext
 
+      if (cancelNsdDiscoveryWork != null) {
+        promise.reject(
+          "ERR_NSD_DISCOVERY_IN_PROGRESS",
+          "Existing tray discovery is already in progress.",
+          null
+        )
+
+        return@AsyncFunction
+      }
+
       if (context == null) {
         promise.reject(
           "ERR_NO_CONTEXT",
@@ -239,6 +270,18 @@ class HiddenRollsProvisioningModule : Module() {
 
       var finished = false
 
+      fun finishDiscovery(): Boolean {
+        if (finished) {
+          return false
+        }
+
+        finished = true
+        cancelNsdDiscoveryWork = null
+        handler.removeCallbacksAndMessages(null)
+
+        return true
+      }
+
       lateinit var discoveryListener:
         NsdManager.DiscoveryListener
 
@@ -246,9 +289,14 @@ class HiddenRollsProvisioningModule : Module() {
         services: List<NsdServiceInfo>,
         index: Int = 0
       ) {
+        if (finished) {
+          return
+        }
         if (index >= services.size) {
-          finished = true
-          promise.resolve(results)
+          if (finishDiscovery()) {
+            promise.resolve(results)
+          }
+
           return
         }
 
@@ -263,6 +311,9 @@ class HiddenRollsProvisioningModule : Module() {
                 serviceInfo: NsdServiceInfo,
                 errorCode: Int
               ) {
+                if (finished) {
+                  return
+                }
                 resolveServices(
                   services,
                   index + 1
@@ -272,6 +323,9 @@ class HiddenRollsProvisioningModule : Module() {
               override fun onServiceResolved(
                 serviceInfo: NsdServiceInfo
               ) {
+                if (finished) {
+                  return
+                }
                 val trayId =
                   serviceInfo.attributes["id"]
                     ?.toString(Charsets.UTF_8)
@@ -350,11 +404,9 @@ class HiddenRollsProvisioningModule : Module() {
             serviceType: String,
             errorCode: Int
           ) {
-            if (finished) {
+            if (!finishDiscovery()) {
               return
             }
-
-            finished = true
 
             try {
               nsdManager.stopServiceDiscovery(
@@ -380,6 +432,24 @@ class HiddenRollsProvisioningModule : Module() {
           }
         }
 
+      cancelNsdDiscoveryWork = {
+        if (finishDiscovery()) {
+          try {
+            nsdManager.stopServiceDiscovery(
+              discoveryListener
+            )
+          } catch (_: Exception) {
+            // Discovery may already have stopped.
+          }
+
+          promise.reject(
+            "ERR_SETUP_CANCELLED",
+            "Existing tray discovery was cancelled.",
+            null
+          )
+        }
+      }
+
       try {
         nsdManager.discoverServices(
           serviceType,
@@ -387,13 +457,13 @@ class HiddenRollsProvisioningModule : Module() {
           discoveryListener
         )
       } catch (error: Exception) {
-        finished = true
-
-        promise.reject(
-          "ERR_NSD_DISCOVERY",
-          "Hidden Rolls tray discovery could not be started.",
-          error
-        )
+        if (finishDiscovery()) {
+          promise.reject(
+            "ERR_NSD_DISCOVERY",
+            "Hidden Rolls tray discovery could not be started.",
+            error
+          )
+        }
 
         return@AsyncFunction
       }
@@ -416,8 +486,9 @@ class HiddenRollsProvisioningModule : Module() {
             discoveredServices.values.toList()
 
           if (services.isEmpty()) {
-            finished = true
-            promise.resolve(emptyList<Any>())
+            if (finishDiscovery()) {
+              promise.resolve(emptyList<Any>())
+            }
           } else {
             resolveServices(services)
           }
@@ -506,6 +577,14 @@ class HiddenRollsProvisioningModule : Module() {
 
     /** Find the QR-selected tray over BLE, retrying short scans when needed. */
     AsyncFunction("findTray") { promise: Promise ->
+    if (cancelDiscoveryWork != null) {
+      promise.reject(
+        "ERR_BLE_SCAN_IN_PROGRESS",
+        "A tray discovery is already in progress.",
+        null
+      )
+      return@AsyncFunction
+    }
     val device = espDevice
 
     if (device == null) {
@@ -551,6 +630,31 @@ class HiddenRollsProvisioningModule : Module() {
     var sawMatchingTray = false
     val discoveredNames = mutableSetOf<String>()
 
+    fun finishDiscovery() {
+      finished = true
+      cancelDiscoveryWork = null
+
+      // This handler belongs only to this discovery operation.
+      mainHandler.removeCallbacksAndMessages(null)
+    }
+
+    cancelDiscoveryWork = {
+      if (!finished) {
+        // Mark finished before stopping the SDK scan.
+        finishDiscovery()
+
+        try {
+          provisionManager.stopBleScan()
+        } finally {
+          promise.reject(
+            "ERR_SETUP_CANCELLED",
+            "Tray discovery was cancelled.",
+            null
+          )
+        }
+      }
+    }
+
     fun startScanAttempt(attempt: Int) {
       if (finished) {
         return
@@ -566,7 +670,7 @@ class HiddenRollsProvisioningModule : Module() {
                   return
                 }
 
-                finished = true
+                finishDiscovery()
 
                 promise.reject(
                   "ERR_BLE_SCAN_START",
@@ -611,9 +715,17 @@ class HiddenRollsProvisioningModule : Module() {
                 device.setBluetoothDevice(bluetoothDevice)
                 device.setPrimaryServiceUuid(serviceUuid)
 
-                finished = true
+                finishDiscovery()
 
-                provisionManager.stopBleScan()
+                runCatching {
+                  provisionManager.stopBleScan()
+                }.onFailure { error ->
+                  android.util.Log.w(
+                    "HiddenRollsProvisioning",
+                    "BLE scan could not be stopped after tray discovery.",
+                    error
+                  )
+                }
 
                 promise.resolve(
                   mapOf(
@@ -639,7 +751,7 @@ class HiddenRollsProvisioningModule : Module() {
                   return
                 }
 
-                finished = true
+                finishDiscovery()
 
                 if (sawMatchingTray) {
                   promise.reject(
@@ -672,7 +784,7 @@ class HiddenRollsProvisioningModule : Module() {
                   return
                 }
 
-                finished = true
+                finishDiscovery()
 
                 promise.reject(
                   "ERR_BLE_SCAN",
@@ -686,8 +798,16 @@ class HiddenRollsProvisioningModule : Module() {
       }
     }
 
-    startScanAttempt(1)
-  }
+      startScanAttempt(1)
+  }.runOnQueue(Queues.MAIN)
+  AsyncFunction("cancelTrayDiscovery") {
+    val cancel = cancelDiscoveryWork
+
+    cancel?.invoke()
+
+    // True means an active discovery was cancelled.
+    cancel != null
+  }.runOnQueue(Queues.MAIN)
 
     /** Connect to the discovered tray and resolve on the SDK connection event. */
     AsyncFunction("connectTray") { promise: Promise ->
@@ -749,52 +869,97 @@ class HiddenRollsProvisioningModule : Module() {
     eventBus.register(module)
   }
 
-  connectionPromise = promise
+    connectionPromise = promise
 
-  val timeout = Runnable {
-    val activePromise =
-      connectionPromise ?: return@Runnable
+    cancelConnectionWork = {
+      if (connectionPromise === promise) {
+        // Stop accepting events before disconnecting the device.
+        finishConnectionAttempt()
 
-    activePromise.reject(
-      "ERR_BLE_CONNECTION_TIMEOUT",
-      "Bluetooth connection to the tray timed out.",
-      null
-    )
+        val disconnectError = runCatching {
+          device.disconnectDevice()
+        }.exceptionOrNull()
 
-    device.disconnectDevice()
-
-    finishConnectionAttempt()
-  }
-
-  connectionTimeout = timeout
-
-  connectionHandler.postDelayed(
-    timeout,
-    15000
-  )
-
-  connectionHandler.post {
-    try {
-      device.connectBLEDevice(
-        bluetoothDevice,
-        serviceUuid
-      )
-    } catch (error: Exception) {
-      val activePromise =
-        connectionPromise
-
-      if (activePromise != null) {
-        activePromise.reject(
-          "ERR_BLE_CONNECTION",
-          "Bluetooth connection to the tray could not be started.",
-          error
+        promise.reject(
+          "ERR_SETUP_CANCELLED",
+          "Tray connection was cancelled.",
+          disconnectError
         )
+
+        // Let the cancellation caller know if disconnection failed.
+        if (disconnectError != null) {
+          throw disconnectError
+        }
+      }
+    }
+
+    val timeout = Runnable {
+      if (connectionPromise !== promise) {
+        return@Runnable
       }
 
       finishConnectionAttempt()
+
+      val disconnectError = runCatching {
+        device.disconnectDevice()
+      }.exceptionOrNull()
+
+      promise.reject(
+        "ERR_BLE_CONNECTION_TIMEOUT",
+        "Bluetooth connection to the tray timed out.",
+        disconnectError
+      )
     }
-  }
-}
+
+    connectionTimeout = timeout
+
+    connectionHandler.postDelayed(
+      timeout,
+      15000
+    )
+
+    val start = Runnable {
+      if (connectionPromise !== promise) {
+        return@Runnable
+      }
+
+      connectionStart = null
+
+      try {
+        device.connectBLEDevice(
+          bluetoothDevice,
+          serviceUuid
+        )
+      } catch (error: Exception) {
+        if (connectionPromise === promise) {
+          finishConnectionAttempt()
+
+          // Clean up any partially started connection.
+          runCatching {
+            device.disconnectDevice()
+          }
+
+          promise.reject(
+            "ERR_BLE_CONNECTION",
+            "Bluetooth connection to the tray could not be started.",
+            error
+          )
+        }
+      }
+    }
+
+  connectionStart = start
+  connectionHandler.post(start)
+}.runOnQueue(Queues.MAIN)
+
+AsyncFunction("cancelTrayConnection") {
+  val cancel = cancelConnectionWork
+
+  cancel?.invoke()
+
+  // True means there was a pending connection to cancel.
+  cancel != null
+}.runOnQueue(Queues.MAIN)
 
 AsyncFunction("scanWifiNetworks") { promise: Promise ->
   val device = espDevice
@@ -805,85 +970,120 @@ AsyncFunction("scanWifiNetworks") { promise: Promise ->
       "Connect to a Hidden Rolls tray before scanning Wi-Fi networks.",
       null
     )
-
     return@AsyncFunction
   }
 
-  var finished = false
-
-  val timeout = Runnable {
-    if (finished) {
-      return@Runnable
-    }
-
-    finished = true
-
+  if (cancelWifiWork != null) {
     promise.reject(
-      "ERR_WIFI_SCAN_TIMEOUT",
-      "The tray took too long to scan for Wi-Fi networks.",
+      "ERR_WIFI_OPERATION_IN_PROGRESS",
+      "A Wi-Fi operation is already in progress.",
       null
     )
+    return@AsyncFunction
   }
 
-  connectionHandler.postDelayed(
-    timeout,
+  val operationHandler = Handler(Looper.getMainLooper())
+  var finished = false
+
+  fun finish(): Boolean {
+    if (finished) return false
+
+    finished = true
+    cancelWifiWork = null
+    operationHandler.removeCallbacksAndMessages(null)
+    return true
+  }
+
+  fun fail(message: String, error: Exception? = null) {
+    operationHandler.post {
+      if (finish()) {
+        promise.reject("ERR_WIFI_SCAN", message, error)
+      }
+    }
+  }
+
+  cancelWifiWork = {
+    if (finish()) {
+      val disconnectError = runCatching {
+        device.disconnectDevice()
+      }.exceptionOrNull()
+
+      promise.reject(
+        "ERR_SETUP_CANCELLED",
+        "Wi-Fi scanning was cancelled.",
+        disconnectError
+      )
+
+      if (disconnectError != null) {
+        throw disconnectError
+      }
+    }
+  }
+
+  operationHandler.postDelayed(
+    {
+      if (finish()) {
+        val disconnectError = runCatching {
+          device.disconnectDevice()
+        }.exceptionOrNull()
+
+        if (disconnectError != null) {
+          android.util.Log.w(
+            "HiddenRollsProvisioning",
+            "BLE disconnect failed after Wi-Fi scan timeout.",
+            disconnectError
+          )
+        }
+
+        promise.reject(
+          "ERR_WIFI_SCAN_TIMEOUT",
+          "The tray took too long to scan for Wi-Fi networks.",
+          null
+        )
+      }
+    },
     30000
   )
 
-  connectionHandler.post {
+  operationHandler.post start@{
+    if (finished) return@start
+
     try {
       device.scanNetworks(
         object : WiFiScanListener {
-
           override fun onWifiListReceived(
             wifiList: ArrayList<WiFiAccessPoint>
           ) {
-            if (finished) {
-              return
+            operationHandler.post result@{
+              if (finished) return@result
+
+              try {
+                val networks = wifiList
+                  .filter { it.getWifiName().isNotBlank() }
+                  .groupBy { it.getWifiName() }
+                  .map { (_, accessPoints) ->
+                    accessPoints.maxByOrNull { it.getRssi() }!!
+                  }
+                  .sortedByDescending { it.getRssi() }
+                  .map {
+                    mapOf(
+                      "ssid" to it.getWifiName(),
+                      "rssi" to it.getRssi(),
+                      "security" to it.getSecurity()
+                    )
+                  }
+
+                if (finish()) {
+                  promise.resolve(networks)
+                }
+              } catch (error: Exception) {
+                fail("The Wi-Fi scan results could not be read.", error)
+              }
             }
-
-            finished = true
-            connectionHandler.removeCallbacks(timeout)
-
-            val networks =
-              wifiList
-                .filter {
-                  it.getWifiName().isNotBlank()
-                }
-                .groupBy {
-                  it.getWifiName()
-                }
-                .map { (_, accessPoints) ->
-                  accessPoints.maxByOrNull {
-                    it.getRssi()
-                  }!!
-                }
-                .sortedByDescending {
-                  it.getRssi()
-                }
-                .map {
-                  mapOf(
-                    "ssid" to it.getWifiName(),
-                    "rssi" to it.getRssi(),
-                    "security" to it.getSecurity()
-                  )
-                }
-
-            promise.resolve(networks)
           }
 
-          override fun onWiFiScanFailed(
-            error: Exception
-          ) {
-            if (finished) {
-              return
-            }
-
-            finished = true
-            connectionHandler.removeCallbacks(timeout)
-
-            promise.reject(
-              "ERR_WIFI_SCAN",
+          override fun onWiFiScanFailed(error: Exception) {
+            fail(
               "Hidden Rolls could not scan for nearby Wi-Fi networks.",
               error
             )
@@ -891,23 +1091,16 @@ AsyncFunction("scanWifiNetworks") { promise: Promise ->
         }
       )
     } catch (error: Exception) {
-      if (finished) {
-        return@post
-      }
-
-      finished = true
-      connectionHandler.removeCallbacks(timeout)
-
-      promise.reject(
-        "ERR_WIFI_SCAN",
-        "Wi-Fi scanning could not be started.",
-        error
-      )
+      fail("Wi-Fi scanning could not be started.", error)
     }
   }
-}
+}.runOnQueue(Queues.MAIN)
 
-AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promise ->
+AsyncFunction("provisionWifi") {
+  ssid: String,
+  password: String,
+  promise: Promise ->
+
   val device = espDevice
 
   if (device == null) {
@@ -916,7 +1109,6 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
       "Connect to a Hidden Rolls tray before provisioning Wi-Fi.",
       null
     )
-
     return@AsyncFunction
   }
 
@@ -926,57 +1118,93 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
       "A Wi-Fi network name is required.",
       null
     )
-
     return@AsyncFunction
   }
 
-  var finished = false
-
-  val timeout = Runnable {
-    if (finished) {
-      return@Runnable
-    }
-
-    finished = true
-
+  if (cancelWifiWork != null) {
     promise.reject(
-      "ERR_PROVISION_TIMEOUT",
-      "Wi-Fi provisioning timed out.",
+      "ERR_WIFI_OPERATION_IN_PROGRESS",
+      "A Wi-Fi operation is already in progress.",
       null
     )
+    return@AsyncFunction
   }
 
-  connectionHandler.postDelayed(
-    timeout,
-    60000
-  )
+  val operationHandler = Handler(Looper.getMainLooper())
+  var finished = false
+
+  fun finish(): Boolean {
+    if (finished) return false
+
+    finished = true
+    cancelWifiWork = null
+    operationHandler.removeCallbacksAndMessages(null)
+    return true
+  }
 
   fun fail(
     code: String,
     message: String,
-    error: Exception?
+    error: Exception? = null
   ) {
-    if (finished) {
-      return
+    operationHandler.post {
+      if (finish()) {
+        promise.reject(code, message, error)
+      }
     }
-
-    finished = true
-    connectionHandler.removeCallbacks(timeout)
-
-    promise.reject(
-      code,
-      message,
-      error
-    )
   }
 
-  connectionHandler.post {
+  cancelWifiWork = {
+    if (finish()) {
+      val disconnectError = runCatching {
+        device.disconnectDevice()
+      }.exceptionOrNull()
+
+      promise.reject(
+        "ERR_SETUP_CANCELLED",
+        "Wi-Fi provisioning was cancelled.",
+        disconnectError
+      )
+
+      if (disconnectError != null) {
+        throw disconnectError
+      }
+    }
+  }
+
+  operationHandler.postDelayed(
+    {
+      if (finish()) {
+        val disconnectError = runCatching {
+          device.disconnectDevice()
+        }.exceptionOrNull()
+
+        if (disconnectError != null) {
+          android.util.Log.w(
+            "HiddenRollsProvisioning",
+            "BLE disconnect failed after provisioning timeout.",
+            disconnectError
+          )
+        }
+
+        promise.reject(
+          "ERR_PROVISION_TIMEOUT",
+          "Wi-Fi provisioning timed out.",
+          disconnectError
+        )
+      }
+    },
+    60000
+  )
+
+  operationHandler.post start@{
+    if (finished) return@start
+
     try {
       device.provision(
         ssid,
         password,
         object : ProvisionListener {
-
           override fun createSessionFailed(error: Exception) {
             fail(
               "ERR_PROVISION_SESSION",
@@ -986,8 +1214,7 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
           }
 
           override fun wifiConfigSent() {
-            // Credentials successfully reached the tray.
-            // Do not resolve yet because the tray still needs to apply them.
+            // Keep waiting for the tray to apply the credentials.
           }
 
           override fun wifiConfigFailed(error: Exception) {
@@ -999,8 +1226,7 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
           }
 
           override fun wifiConfigApplied() {
-            // The tray accepted the configuration.
-            // Still wait for final provisioning success.
+            // Keep waiting for final provisioning success.
           }
 
           override fun wifiConfigApplyFailed(error: Exception) {
@@ -1016,24 +1242,18 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
           ) {
             fail(
               "ERR_PROVISION_DEVICE",
-              "The tray could not connect to the selected Wi-Fi network.",
-              null
+              "The tray could not connect to the selected Wi-Fi network."
             )
           }
 
           override fun deviceProvisioningSuccess() {
-            if (finished) {
-              return
+            operationHandler.post {
+              if (finish()) {
+                promise.resolve(
+                  mapOf("provisioned" to true)
+                )
+              }
             }
-
-            finished = true
-            connectionHandler.removeCallbacks(timeout)
-
-            promise.resolve(
-              mapOf(
-                "provisioned" to true
-              )
-            )
           }
 
           override fun onProvisioningFailed(error: Exception) {
@@ -1053,7 +1273,76 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
       )
     }
   }
-}
+}.runOnQueue(Queues.MAIN)
+
+// Cancel wifi opeation
+AsyncFunction("cancelTrayWifiOperation") {
+  val cancel = cancelWifiWork
+
+  cancel?.invoke()
+
+  cancel != null
+}.runOnQueue(Queues.MAIN)
+
+AsyncFunction("cancelTraySetup") { promise: Promise ->
+  val device = espDevice
+  var cleanupError: Throwable? = null
+
+  fun attempt(action: () -> Unit) {
+    try {
+      action()
+    } catch (error: Throwable) {
+      if (cleanupError == null) {
+        cleanupError = error
+      }
+    }
+  }
+
+  // Capture the callbacks before they clear their own fields.
+  val cancellationActions = listOf(
+    cancelConnectionWork,
+    cancelDiscoveryWork,
+    cancelNsdDiscoveryWork,
+    cancelWifiWork
+  )
+
+  cancellationActions.forEach { cancel ->
+    attempt {
+      cancel?.invoke()
+    }
+  }
+
+  attempt {
+    finishConnectionAttempt()
+  }
+
+  attempt {
+    appContext.reactContext?.let { context ->
+      ESPProvisionManager.getInstance(context).stopBleScan()
+    }
+  }
+
+  // Also disconnect a connection whose setup operation already finished.
+  attempt {
+    device?.disconnectDevice()
+  }
+
+  if (cleanupError != null) {
+    promise.reject(
+      "ERR_SETUP_CLEANUP",
+      "Hidden Rolls could not completely stop the previous setup.",
+      cleanupError
+    )
+    return@AsyncFunction
+  }
+
+  espDevice = null
+  currentProofOfPossession = null
+  currentTrayId = null
+  currentTrayHostname = null
+
+  promise.resolve(null)
+}.runOnQueue(Queues.MAIN)
 
     /**
      * SyncFunction: getBluetoothStatus
@@ -1098,9 +1387,6 @@ AsyncFunction("provisionWifi") { ssid: String, password: String, promise: Promis
         require(proofOfPossession.isNotBlank()) {
           "Provisioning QR is missing proof of possession."
         }
-
-        currentProofOfPossession =
-          proofOfPossession
 
         require(transport.equals("ble", ignoreCase = true)) {
           "HiddenRolls requires BLE provisioning."

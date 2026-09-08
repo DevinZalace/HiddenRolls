@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Pressable,
   Text,
@@ -16,11 +16,12 @@ import {
   verifyHiddenRollsTray,
   waitForTrayReady,
 } from "../../services/cameraService";
-import { parseTrayQr, findTray, connectTray, scanWifiNetworks, provisionWifi, resetTrayWifi, } from "../../services/provisioningService";
+import { parseTrayQr, findTray, connectTray, cancelTraySetup, scanWifiNetworks, provisionWifi, resetTrayWifi, } from "../../services/provisioningService";
 import { styles } from "../theme/styles";
 import {
   savePairedTray,
 } from "../../services/pairedTrayService";
+import { usePreventRemove } from "@react-navigation/native";
 
 /**
  * ScanTrayScreen
@@ -35,6 +36,59 @@ import {
  * Flow: Camera permission -> Scan QR -> verify Wi-Fi -> BLE setup -> Wi-Fi provisioning
  */
 export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPairedTray }) {
+  // Identifies the current setup attempt.
+  const setupAttemptRef = useRef(0);
+  const savingPairingRef = useRef(false);
+  const qrScanRef = useRef(false);
+  const resettingTrayWifiRef = useRef(false);
+  const readinessAbortRef = useRef(null);
+  const [savingPairing, setSavingPairing] = useState(false);
+  const verificationAbortRef = useRef(null);
+  const cleanupPromiseRef = useRef(null);
+  const stoppingSetupRef = useRef(false);
+  const mountedRef = useRef(true);
+  const navigationCleanupDoneRef = useRef(false);
+
+  const [stoppingSetup, setStoppingSetup] = useState(false);
+  const [cleanupError, setCleanupError] = useState(null);
+
+  // Prevent leaving the screen while saving the pairing.
+  usePreventRemove(true, ({ data }) => {
+    if (
+      savingPairingRef.current ||
+      stoppingSetupRef.current
+    ) {
+      return;
+    }
+
+    void stopSetup().then((stopped) => {
+      if (!stopped || !mountedRef.current) {
+        return;
+      }
+
+      navigationCleanupDoneRef.current = true;
+
+      // Keep old screen controls blocked during the transition.
+      stoppingSetupRef.current = true;
+
+      setPendingTray(null);
+      navigation.dispatch(data.action);
+    });
+  });
+
+  // Invalidate unfinished work when this screen is removed.
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      invalidateSetupAttempt();
+
+      if (!navigationCleanupDoneRef.current) {
+        void stopSetup();
+      }
+    };
+  }, []);
   // Camera permission state
   const [permission, requestPermission] =
     useCameraPermissions();
@@ -80,24 +134,92 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
   const [resetWifiError, setResetWifiError] =
     useState(null);
 
+    // Invalidate callbacks before aborting their network work.
+  function invalidateSetupAttempt() {
+    setupAttemptRef.current += 1;
+    readinessAbortRef.current?.abort();
+    readinessAbortRef.current = null;
+    verificationAbortRef.current?.abort();
+    verificationAbortRef.current = null;
+  }
+
+  // Stops the current tray setup process, including BLE disconnection and cleanup.
+  // Returns a promise that resolves to true if cleanup succeeded, false otherwise.
+  function stopSetup() {
+  if (cleanupPromiseRef.current) {
+    return cleanupPromiseRef.current;
+  }
+
+  invalidateSetupAttempt();
+  stoppingSetupRef.current = true;
+
+  if (mountedRef.current) {
+    setStoppingSetup(true);
+    setCleanupError(null);
+  }
+
+  const cleanup = cancelTraySetup()
+    .then(
+      () => {
+        stoppingSetupRef.current = false;
+        return true;
+      },
+      (error) => {
+        console.error("Setup cleanup failed:", error);
+
+        if (mountedRef.current) {
+          setCleanupError(
+            "Hidden Rolls could not stop the previous setup. Try again."
+          );
+        }
+
+        return false;
+      }
+    )
+    .finally(() => {
+      if (cleanupPromiseRef.current === cleanup) {
+        cleanupPromiseRef.current = null;
+      }
+
+      if (mountedRef.current) {
+        setStoppingSetup(false);
+      }
+    });
+
+  cleanupPromiseRef.current = cleanup;
+  return cleanup;
+}
   /**
    * Initiates Bluetooth discovery of the tray.
    * Calls the native provisioning service to scan for the device.
    */
   async function handleFindTray() {
+  if (stoppingSetupRef.current) {
+    return;
+  }
   if (findingTray) {
     return;
   }
+
+  const attemptId = setupAttemptRef.current;
+  const isCurrentAttempt = () =>
+    setupAttemptRef.current === attemptId;
 
   setFindingTray(true);
   setDiscoveryError(null);
 
   try {
     await findTray();
+    if (!isCurrentAttempt()) {
+      return;
+    }
 
     setTrayFoundOverBle(true);
     setTraySetupState("ready");
   } catch (error) {
+    if (!isCurrentAttempt()) {
+      return;
+    }
     console.error(
       "BLE tray discovery failed:",
       error
@@ -109,7 +231,9 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
       "Hidden Rolls could not find this tray nearby. Make sure the tray is powered on and ready for setup."
     );
   } finally {
-    setFindingTray(false);
+    if (isCurrentAttempt()) {
+      setFindingTray(false);
+    }
   }
 }
 
@@ -119,58 +243,139 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
    * Prevents multiple scans in quick succession.
    */
   async function handleBarcodeScanned({ data }) {
-  if (scanned) {
-    return;
-  }
-
-  setScanned(true);
-  setScanError(null);
-  setDiscoveryError(null);
-  setTraySetupState("checking");
-
-  try {
-    const tray = parseTrayQr(data);
-
-    setPendingTray(tray);
-
-    // First determine whether this exact tray is already
-    // configured and reachable over the local network.
-    const alreadyConfigured =
-      await verifyHiddenRollsTray(tray);
-
-    if (alreadyConfigured) {
-      setTraySetupState("existing");
+    if (stoppingSetupRef.current) {
+      return;
+    }
+    if (
+      scanned ||
+      qrScanRef.current ||
+      savingPairingRef.current
+    ) {
       return;
     }
 
-    // The tray is not reachable over Wi-Fi.
-    // Check whether it is advertising its BLE provisioning service.
+    // Lock immediately, before another camera callback can enter.
+    qrScanRef.current = true;
+
+    const attemptId = setupAttemptRef.current;
+    const isCurrentAttempt = () =>
+      setupAttemptRef.current === attemptId;
+
+    setScanned(true);
+    setScanError(null);
+    setDiscoveryError(null);
+    setTraySetupState("checking");
+
     try {
-      await findTray();
+      // Finish any cleanup left by an earlier screen instance.
+      try {
+        await cancelTraySetup();
+      } catch (error) {
+        if (!isCurrentAttempt()) {
+          return;
+        }
 
-      setTrayFoundOverBle(true);
-      setTraySetupState("ready");
+        stoppingSetupRef.current = true;
+        setCleanupError(
+          "Hidden Rolls could not stop the previous setup. Try again."
+        );
+        return;
+      }
+
+      if (!isCurrentAttempt()) {
+        return;
+      }
+      const tray = parseTrayQr(data);
+      setPendingTray(tray);
+
+      const verificationController = new AbortController();
+        verificationAbortRef.current = verificationController;
+
+        let alreadyConfigured;
+
+        try {
+          alreadyConfigured = await verifyHiddenRollsTray(
+            tray,
+            3000,
+            verificationController.signal
+          );
+        } finally {
+          if (
+            verificationAbortRef.current === verificationController
+          ) {
+            verificationAbortRef.current = null;
+          }
+        }
+
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
+      if (alreadyConfigured) {
+        setTraySetupState("existing");
+        return;
+      }
+
+      try {
+        await findTray();
+
+        if (!isCurrentAttempt()) {
+          return;
+        }
+
+        setTrayFoundOverBle(true);
+        setTraySetupState("ready");
+      } catch (error) {
+        if (!isCurrentAttempt()) {
+          return;
+        }
+
+        console.error(
+          "Tray was not found over Wi-Fi or Bluetooth:",
+          error
+        );
+
+        setTraySetupState("unreachable");
+      }
     } catch (error) {
-      console.error(
-        "Tray was not found over Wi-Fi or Bluetooth:",
-        error
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
+      console.error("Tray QR parsing failed:", error);
+
+      setPendingTray(null);
+      setTraySetupState("idle");
+
+      // Keep scanning paused until the user presses Scan Again.
+      setScanError(
+        "This QR code is not a valid Hidden Rolls tray."
       );
-
-      setTraySetupState("unreachable");
     }
-  } catch (error) {
-    console.error(
-      "Tray QR parsing failed:",
-      error
-    );
+  }
 
-    setPendingTray(null);
-    setScanned(false);
-    setTraySetupState("idle");
+// Saves the pairing for the current setup attempt if it is still valid.
+async function savePairingForAttempt(tray, attemptId) {
+  if (
+    setupAttemptRef.current !== attemptId ||
+    savingPairingRef.current
+  ) {
+    return false;
+  }
 
-    setScanError(
-      "This QR code is not a valid Hidden Rolls tray."
-    );
+  savingPairingRef.current = true;
+  setSavingPairing(true);
+
+  try {
+    await savePairedTray(tray);
+
+    return setupAttemptRef.current === attemptId;
+  } finally {
+    savingPairingRef.current = false;
+
+    if (setupAttemptRef.current === attemptId) {
+      setSavingPairing(false);
+    }
   }
 }
 
@@ -179,10 +384,17 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
    * Saves it as a paired tray and navigates to the live view.
    */
 async function handleUseExistingTray() {
-  if (!pendingTray) {
+  if (stoppingSetupRef.current) {
     return;
   }
-
+  if (
+    !pendingTray ||
+    resettingTrayWifiRef.current ||
+    savingPairingRef.current
+  ) {
+    return;
+  }
+  const attemptId = setupAttemptRef.current;
   const pairedTray = {
     schemaVersion: 1,
     trayId: pendingTray.trayId,
@@ -195,8 +407,17 @@ async function handleUseExistingTray() {
   };
 
   try {
-    await savePairedTray(pairedTray);
+    const saved = await savePairingForAttempt(
+      pairedTray,
+      attemptId
+    );
 
+    if (
+      !saved ||
+      setupAttemptRef.current !== attemptId
+    ) {
+      return;
+    }
     setPairedTray(pairedTray);
     setPendingTray(null);
 
@@ -214,13 +435,25 @@ async function handleUseExistingTray() {
 
   // Ask for confirmation, clear saved Wi-Fi, and return the tray to BLE setup.
 function handleResetTrayWifi() {
-  if (resettingTrayWifi) {
+  if (stoppingSetupRef.current) {
+    return;
+  }
+  if (
+    !pendingTray ||
+    resettingTrayWifiRef.current ||
+    savingPairingRef.current
+  ) {
     return;
   }
 
+  // Capture the attempt when the dialog opens.
+  const attemptId = setupAttemptRef.current;
+  const isCurrentAttempt = () =>
+    setupAttemptRef.current === attemptId;
+
   Alert.alert(
     "Reset Wi-Fi?",
-    `This will remove the Wi-Fi network saved on Hidden Rolls ${pendingTray?.trayId} and restart the tray. You will need to set up Wi-Fi again.`,
+    `This will remove the Wi-Fi network saved on Hidden Rolls ${pendingTray.trayId} and restart the tray. You will need to set up Wi-Fi again.`,
     [
       {
         text: "Cancel",
@@ -230,48 +463,74 @@ function handleResetTrayWifi() {
         text: "Reset & Continue",
         style: "destructive",
         onPress: async () => {
+          if (
+            !isCurrentAttempt() ||
+            resettingTrayWifiRef.current ||
+            savingPairingRef.current
+          ) {
+            return;
+          }
+
+          resettingTrayWifiRef.current = true;
           setResettingTrayWifi(true);
           setResetWifiError(null);
 
           try {
             await resetTrayWifi();
 
-            // The tray accepted the request and is restarting.
+            if (!isCurrentAttempt()) {
+              return;
+            }
+
             setTraySetupState("checking");
 
-            // Give the ESP32 time to reboot into BLE provisioning mode.
             await new Promise((resolve) =>
               setTimeout(resolve, 3000)
             );
 
+            if (!isCurrentAttempt()) {
+              return;
+            }
+
             try {
               await findTray();
+
+              if (!isCurrentAttempt()) {
+                return;
+              }
 
               setTrayFoundOverBle(true);
               setTraySetupState("ready");
             } catch (error) {
+              if (!isCurrentAttempt()) {
+                return;
+              }
+
               console.error(
                 "Tray restarted but was not found over Bluetooth:",
                 error
               );
 
               setTraySetupState("unreachable");
-
               setResetWifiError(
                 "The tray restarted, but Hidden Rolls could not find it over Bluetooth yet. Try Find Tray again."
               );
             }
           } catch (error) {
-            console.error(
-              "Wi-Fi reset failed:",
-              error
-            );
+            if (!isCurrentAttempt()) {
+              return;
+            }
+
+            console.error("Wi-Fi reset failed:", error);
 
             setResetWifiError(
               "Hidden Rolls could not reset this tray's Wi-Fi."
             );
           } finally {
-            setResettingTrayWifi(false);
+            if (isCurrentAttempt()) {
+              resettingTrayWifiRef.current = false;
+              setResettingTrayWifi(false);
+            }
           }
         },
       },
@@ -284,53 +543,111 @@ function handleResetTrayWifi() {
    * Requires the tray to be found via findTray() first.
    */
   async function handleConnectTray() {
-    if (connectingTray) return;
+    if (stoppingSetupRef.current) {
+      return;
+    }
+    if (connectingTray) {
+      return;
+    }
+
+    const attemptId = setupAttemptRef.current;
+    const isCurrentAttempt = () =>
+      setupAttemptRef.current === attemptId;
 
     setConnectingTray(true);
     setConnectionError(null);
 
     try {
       await connectTray();
+
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
       setTrayConnected(true);
     } catch (error) {
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
       console.error("BLE tray connection failed:", error);
 
       setConnectionError(
         "Hidden Rolls found the tray, but could not connect to it."
       );
     } finally {
-      setConnectingTray(false);
+      if (isCurrentAttempt()) {
+        setConnectingTray(false);
+      }
     }
   }
-
   /**
    * Scans for available Wi-Fi networks visible to the tray.
    * Requires the tray to be connected via connectTray() first.
    */
   async function handleScanWifi() {
-    if (scanningWifi) return;
+    if (stoppingSetupRef.current) {
+      return;
+    }
+    if (
+      scanningWifi ||
+      provisioningWifi ||
+      finalizingSetup ||
+      wifiProvisioned ||
+      savingPairingRef.current
+    ) {
+      return;
+    }
+
+    const attemptId = setupAttemptRef.current;
+    const isCurrentAttempt = () =>
+      setupAttemptRef.current === attemptId;
 
     setScanningWifi(true);
     setWifiScanError(null);
     setWifiNetworks([]);
     setSelectedNetwork(null);
+    setWifiPassword("");
 
     try {
       const networks = await scanWifiNetworks();
+
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
       setWifiNetworks(networks);
     } catch (error) {
-      console.error("Tray Wi-Fi scan failed:", error);
+        if (!isCurrentAttempt()) {
+          return;
+        }
 
-      setWifiScanError(
-        "Hidden Rolls could not find nearby Wi-Fi networks."
-      );
-    } finally {
-      setScanningWifi(false);
+        console.error("Tray Wi-Fi scan failed:", error);
+
+        if (error?.code === "ERR_WIFI_SCAN_TIMEOUT") {
+          setTrayConnected(false);
+
+          setWifiScanError(
+            "The Wi-Fi scan timed out. Reconnect to the tray and try again."
+          );
+
+          return;
+        }
+
+        setWifiScanError(
+          "Hidden Rolls could not find nearby Wi-Fi networks."
+        );
+      } finally {
+      if (isCurrentAttempt()) {
+        setScanningWifi(false);
+      }
     }
   }
-
   // Handles selection of a Wi-Fi network from the scanned list.
   function handleSelectNetwork(network) {
+    if (stoppingSetupRef.current) {
+      return;
+    }
   setSelectedNetwork(network);
   setWifiPassword("");
   setProvisionError(null);
@@ -338,10 +655,17 @@ function handleResetTrayWifi() {
 
   // Attempts to provision the tray with the selected Wi-Fi network and password.
   async function handleProvisionWifi() {
+    if (stoppingSetupRef.current) {
+      return;
+    }
     if (!selectedNetwork || provisioningWifi) {
       return;
     }
 
+    const attemptId = setupAttemptRef.current;
+
+    const isCurrentAttempt = () =>
+      setupAttemptRef.current === attemptId;
     let provisioningSucceeded = false;
 
     setProvisioningWifi(true);
@@ -354,14 +678,27 @@ function handleResetTrayWifi() {
         wifiPassword
       );
 
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
       provisioningSucceeded = true;
       setWifiProvisioned(true);
       setFinalizingSetup(true);
 
-      await waitForTrayReady(
-        pendingTray.hostname
-      );
+      const readinessController = new AbortController();
+        readinessAbortRef.current = readinessController;
 
+        await waitForTrayReady(
+          pendingTray.hostname,
+          {
+            signal: readinessController.signal,
+          }
+        );
+
+      if (!isCurrentAttempt()) {
+        return;
+      }
       const pairedTray = {
         schemaVersion: 1,
         trayId: pendingTray.trayId,
@@ -371,7 +708,17 @@ function handleResetTrayWifi() {
         pairedAt: new Date().toISOString(),
       };
 
-      await savePairedTray(pairedTray);
+      const saved = await savePairingForAttempt(
+        pairedTray,
+        attemptId
+      );
+
+      if (
+        !saved ||
+        setupAttemptRef.current !== attemptId
+      ) {
+        return;
+      }
       setPairedTray(pairedTray);
       setPendingTray(null);
 
@@ -380,7 +727,89 @@ function handleResetTrayWifi() {
         routes: [{ name: "Live" }],
       });
     } catch (error) {
+      if (!isCurrentAttempt()) {
+        return;
+      }
       console.error("Tray setup failed:", error);
+
+      if (error?.code === "ERR_PROVISION_TIMEOUT") {
+        setTrayConnected(false);
+        setFinalizingSetup(true);
+
+        const readinessController = new AbortController();
+        readinessAbortRef.current = readinessController;
+
+        try {
+          await waitForTrayReady(
+            pendingTray.hostname,
+            {
+              timeoutMs: 15000,
+              intervalMs: 1500,
+              signal: readinessController.signal,
+            }
+          );
+
+          if (!isCurrentAttempt()) {
+            return;
+          }
+
+          setWifiProvisioned(true);
+
+          const pairedTray = {
+            schemaVersion: 1,
+            trayId: pendingTray.trayId,
+            displayName:
+              `Hidden Rolls ${pendingTray.trayId}`,
+            hostname: pendingTray.hostname,
+            provisioningName:
+              pendingTray.provisioningName,
+            pairedAt: new Date().toISOString(),
+          };
+
+          const saved = await savePairingForAttempt(
+            pairedTray,
+            attemptId
+          );
+
+          if (
+            !saved ||
+            setupAttemptRef.current !== attemptId
+          ) {
+            return;
+          }
+
+          setPairedTray(pairedTray);
+          setPendingTray(null);
+
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Live" }],
+          });
+
+          return;
+        } catch {
+          if (!isCurrentAttempt()) {
+            return;
+          }
+
+          setProvisionError(
+            "The tray did not confirm Wi-Fi setup and could not be reached on the network. Reconnect to the tray and try again."
+          );
+
+          return;
+        } finally {
+          if (
+            readinessAbortRef.current ===
+            readinessController
+          ) {
+            readinessAbortRef.current = null;
+          }
+
+          if (isCurrentAttempt()) {
+            setFinalizingSetup(false);
+          }
+        }
+            } // End ERR_PROVISION_TIMEOUT handling.
 
       if (provisioningSucceeded) {
         setFinalizationError(
@@ -392,12 +821,30 @@ function handleResetTrayWifi() {
         );
       }
     } finally {
-      setProvisioningWifi(false);
-      setFinalizingSetup(false);
+      if (isCurrentAttempt()) {
+        readinessAbortRef.current = null;
+        setProvisioningWifi(false);
+        setFinalizingSetup(false);
+      }
     }
   }
+  async function resetProvisioningState() {
+  if (savingPairingRef.current) {
+    return false;
+  }
 
-  function resetProvisioningState() {
+  const stopped = await stopSetup();
+
+  if (
+    !stopped ||
+    !mountedRef.current ||
+    navigationCleanupDoneRef.current
+  ) {
+    return false;
+  }
+    qrScanRef.current = false;
+    resettingTrayWifiRef.current = false;
+
     setPendingTray(null);
 
     setScanned(false);
@@ -412,6 +859,7 @@ function handleResetTrayWifi() {
     setConnectionError(null);
 
     setScanningWifi(false);
+    setWifiScanError(null);
     setWifiNetworks([]);
     setSelectedNetwork(null);
 
@@ -427,6 +875,42 @@ function handleResetTrayWifi() {
 
     setResettingTrayWifi(false);
     setResetWifiError(null);
+    return true;
+  }
+
+  // Stopping setup or cleanup error: Show appropriate message
+  if (stoppingSetup || cleanupError) {
+    return (
+      <View style={styles.setupRoot}>
+        <View style={styles.helpCard}>
+          <Text style={styles.helpTitle}>
+            {cleanupError
+              ? "Setup could not stop"
+              : "Stopping previous setup..."}
+          </Text>
+
+          {cleanupError ? (
+            <>
+              <Text style={styles.helpBody}>
+                {cleanupError}
+              </Text>
+
+              <Pressable
+                style={[
+                  styles.primaryBtn,
+                  { marginTop: 14 },
+                ]}
+                onPress={resetProvisioningState}
+              >
+                <Text style={styles.primaryBtnText}>
+                  Try Again
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </View>
+    );
   }
 
   // Loading state: Camera permission is being checked
@@ -507,6 +991,7 @@ function handleResetTrayWifi() {
                   { marginTop: 14 },
                 ]}
                 onPress={handleUseExistingTray}
+                disabled={resettingTrayWifi || savingPairing}
               >
                 <Text style={styles.primaryBtnText}>
                   Use This Tray
@@ -519,7 +1004,7 @@ function handleResetTrayWifi() {
                   resettingTrayWifi && { opacity: 0.6 },
                 ]}
                 onPress={handleResetTrayWifi}
-                disabled={resettingTrayWifi}
+                disabled={resettingTrayWifi || savingPairing}
               >
                 <Text style={styles.primaryBtnText}>
                   {resettingTrayWifi
@@ -609,7 +1094,13 @@ function handleResetTrayWifi() {
                 scanningWifi && { opacity: 0.6 },
               ]}
               onPress={handleScanWifi}
-              disabled={scanningWifi}
+              disabled={
+                scanningWifi ||
+                provisioningWifi ||
+                finalizingSetup ||
+                wifiProvisioned ||
+                savingPairing
+              }
             >
               <Text style={styles.primaryBtnText}>
                 {scanningWifi ? "Scanning Wi-Fi..." : "Scan Wi-Fi"}
@@ -731,17 +1222,18 @@ function handleResetTrayWifi() {
           {/* Navigation buttons */}
           <Pressable
             style={[styles.primaryBtn, { marginTop: 10 }]}
+            disabled={savingPairing}
             onPress={resetProvisioningState}
           >
             <Text style={styles.primaryBtnText}>
-              Scan Again
+              {savingPairing ? "Saving Tray..." : "Scan Again"}
             </Text>
           </Pressable>
 
           <Pressable
             style={[styles.primaryBtn, { marginTop: 10 }]}
+            disabled={savingPairing}
             onPress={() => {
-              resetProvisioningState();
               navigation.reset({
                 index: 1,
                 routes: [
@@ -797,14 +1289,11 @@ function handleResetTrayWifi() {
 
           <Pressable
             style={[styles.primaryBtn, { marginTop: 14 }]}
-            onPress={() => {
-              setPendingTray(null);
-              setScanned(false);
-              setScanError(null);
-            }}
+            disabled={savingPairing}
+            onPress={resetProvisioningState}
           >
             <Text style={styles.primaryBtnText}>
-              Scan Again
+              {savingPairing ? "Saving Tray..." : "Scan Again"}
             </Text>
           </Pressable>
         </View>
@@ -813,9 +1302,8 @@ function handleResetTrayWifi() {
       {/* Back button to return to setup */}
       <Pressable
         style={styles.primaryBtn}
+        disabled={savingPairing}
         onPress={() => {
-          resetProvisioningState();
-
           navigation.reset({
             index: 1,
             routes: [

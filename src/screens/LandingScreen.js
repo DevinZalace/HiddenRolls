@@ -6,7 +6,7 @@
  * of already-configured trays on the local network.
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Alert,
   ImageBackground,
@@ -29,7 +29,7 @@ import {
 } from "../../services/pairedTrayService";
 
 import {
-  findExistingTrays,
+  findExistingTrays, cancelTraySetup,
 } from "../../services/provisioningService";
 
 import {
@@ -69,12 +69,51 @@ export function LandingScreen({
   setPairedTray,
 }) {
 
+  const existingTrayAttemptRef = useRef(0);
+  const existingTrayAbortRef = useRef(null);
   const [openingTray, setOpeningTray] = useState(false);
   const [findingExistingTray, setFindingExistingTray] =
    useState(false);
 
   const [findTrayError, setFindTrayError] =
     useState("");
+
+    // Cleanup existing tray search on unmount or navigation blur.
+  useEffect(() => {
+  function cancelExistingSearch() {
+    existingTrayAttemptRef.current += 1;
+
+    const controller = existingTrayAbortRef.current;
+    existingTrayAbortRef.current = null;
+
+    controller?.abort();
+
+    // Cancel native work only when Landing owned a search.
+    if (controller) {
+      void cancelTraySetup().catch((error) => {
+        console.error(
+          "Existing tray search cleanup failed:",
+          error
+        );
+      });
+    }
+  }
+
+  const unsubscribe = navigation.addListener(
+    "blur",
+    () => {
+      cancelExistingSearch();
+
+      // Landing can remain mounted while another screen opens.
+      setFindingExistingTray(false);
+    }
+  );
+
+  return () => {
+    unsubscribe();
+    cancelExistingSearch();
+  };
+}, [navigation]);
 
   async function handleOpenTray() {
     if (!pairedTray || openingTray) {
@@ -152,89 +191,138 @@ export function LandingScreen({
   }
 
   // Discover and verify trays that are already configured on the local network.
-  async function handleFindExistingTray() {
-    if (findingExistingTray) {
+ async function handleFindExistingTray() {
+  if (findingExistingTray) {
+    return;
+  }
+
+  const attemptId =
+    ++existingTrayAttemptRef.current;
+
+  const isCurrentAttempt = () =>
+    existingTrayAttemptRef.current === attemptId;
+
+  const abortController =
+    new AbortController();
+
+  existingTrayAbortRef.current =
+    abortController;
+
+  setFindingExistingTray(true);
+  setFindTrayError("");
+
+  try {
+    const discoveredTrays =
+      await findExistingTrays();
+
+    if (!isCurrentAttempt()) {
       return;
     }
 
-    setFindingExistingTray(true);
-    setFindTrayError("");
-
-    try {
-      const discoveredTrays =
-        await findExistingTrays();
-
-      if (discoveredTrays.length === 0) {
-        setFindTrayError(
-          "No Hidden Rolls trays were found. Make sure your tray is powered on and connected to the same Wi-Fi network."
-        );
-
-        return;
-      }
-
-      const verifiedTrays = [];
-
-      for (const tray of discoveredTrays) {
-        const verified =
-          await verifyHiddenRollsTray(tray);
-
-        if (verified) {
-          verifiedTrays.push(tray);
-        }
-      }
-
-      if (verifiedTrays.length === 0) {
-        setFindTrayError(
-          "A device was discovered, but Hidden Rolls could not verify it."
-        );
-
-        return;
-      }
-
-      if (verifiedTrays.length > 1) {
-        setFindTrayError(
-          "Multiple Hidden Rolls trays were found. Tray selection will be added next."
-        );
-
-        return;
-      }
-
-      const discoveredTray =
-        verifiedTrays[0];
-
-      const restoredTray = {
-        schemaVersion: 1,
-        trayId: discoveredTray.trayId,
-        displayName:
-          discoveredTray.displayName ||
-          `Hidden Rolls ${discoveredTray.trayId}`,
-        hostname: discoveredTray.hostname,
-        provisioningName:
-          discoveredTray.provisioningName,
-        pairedAt: new Date().toISOString(),
-      };
-
-      await savePairedTray(restoredTray);
-
-      setPairedTray(restoredTray);
-
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Live" }],
-      });
-    } catch (error) {
-      console.error(
-        "Existing tray discovery failed:",
-        error
-      );
-
+    if (discoveredTrays.length === 0) {
       setFindTrayError(
-        "Hidden Rolls could not search for existing trays."
+        "No Hidden Rolls trays were found. Make sure your tray is powered on and connected to the same Wi-Fi network."
       );
-    } finally {
+
+      return;
+    }
+
+    const verifiedTrays = [];
+
+    for (const tray of discoveredTrays) {
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
+      const verified =
+        await verifyHiddenRollsTray(
+          tray,
+          3000,
+          abortController.signal
+        );
+
+      if (!isCurrentAttempt()) {
+        return;
+      }
+
+      if (verified) {
+        verifiedTrays.push(tray);
+      }
+    }
+
+    if (verifiedTrays.length === 0) {
+      setFindTrayError(
+        "A device was discovered, but Hidden Rolls could not verify it."
+      );
+
+      return;
+    }
+
+    if (verifiedTrays.length > 1) {
+      setFindTrayError(
+        "Multiple Hidden Rolls trays were found. Tray selection will be added next."
+      );
+
+      return;
+    }
+
+    const discoveredTray =
+      verifiedTrays[0];
+
+    const restoredTray = {
+      schemaVersion: 1,
+      trayId: discoveredTray.trayId,
+      displayName:
+        discoveredTray.displayName ||
+        `Hidden Rolls ${discoveredTray.trayId}`,
+      hostname: discoveredTray.hostname,
+      provisioningName:
+        discoveredTray.provisioningName,
+      pairedAt: new Date().toISOString(),
+    };
+
+    await savePairedTray(restoredTray);
+
+    if (!isCurrentAttempt()) {
+      return;
+    }
+
+    setPairedTray(restoredTray);
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Live" }],
+    });
+  } catch (error) {
+    if (
+      !isCurrentAttempt() ||
+      error?.name === "AbortError" ||
+      error?.code === "ERR_SETUP_CANCELLED"
+    ) {
+      return;
+    }
+
+    console.error(
+      "Existing tray discovery failed:",
+      error
+    );
+
+    setFindTrayError(
+      "Hidden Rolls could not search for existing trays."
+    );
+  } finally {
+    if (
+      existingTrayAbortRef.current ===
+      abortController
+    ) {
+      existingTrayAbortRef.current = null;
+    }
+
+    if (isCurrentAttempt()) {
       setFindingExistingTray(false);
     }
   }
+}
 
   return (
     <ImageBackground
