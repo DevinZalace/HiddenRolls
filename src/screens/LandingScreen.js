@@ -130,8 +130,9 @@ export function LandingScreen({
 
       if (!result.connected) {
         Alert.alert(
-          "Tray Not Found",
-          "Make sure your Hidden Rolls tray is powered on and connected to the same Wi-Fi network."
+          t.connectionFailedTitle,
+          t.pairedTrayUnavailable,
+          [{ text: t.ok }]
         );
 
         return;
@@ -145,8 +146,9 @@ export function LandingScreen({
       );
 
       Alert.alert(
-        "Tray Not Found",
-        "Hidden Rolls could not connect to your paired tray."
+        t.connectionFailedTitle,
+        t.pairedTrayConnectionFailed,
+        [{ text: t.ok }]
       );
     } finally {
       setOpeningTray(false);
@@ -159,15 +161,15 @@ export function LandingScreen({
     }
 
     Alert.alert(
-      "Forget Tray?",
-      "This removes the tray from this app. It will not erase the Wi-Fi settings stored on the tray.",
+      t.forgetTrayTitle,
+      t.forgetTrayBody,
       [
         {
-          text: "Cancel",
+          text: t.cancel,
           style: "cancel",
         },
         {
-          text: "Forget",
+          text: t.forgetTrayConfirm,
           style: "destructive",
           onPress: async () => {
             try {
@@ -180,8 +182,9 @@ export function LandingScreen({
               );
 
               Alert.alert(
-                "Could Not Forget Tray",
-                "Please try again."
+                t.forgetTrayFailedTitle,
+                t.pleaseTryAgain,
+                [{ text: t.ok }]
               );
             }
           },
@@ -221,7 +224,7 @@ export function LandingScreen({
 
     if (discoveredTrays.length === 0) {
       setFindTrayError(
-        "No Hidden Rolls trays were found. Make sure your tray is powered on and connected to the same Wi-Fi network."
+        "existingTraysNotFound"
       );
 
       return;
@@ -252,7 +255,7 @@ export function LandingScreen({
 
     if (verifiedTrays.length === 0) {
       setFindTrayError(
-        "A device was discovered, but Hidden Rolls could not verify it."
+        "existingTrayUnverified"
       );
 
       return;
@@ -260,7 +263,7 @@ export function LandingScreen({
 
     if (verifiedTrays.length > 1) {
       setFindTrayError(
-        "Multiple Hidden Rolls trays were found. Tray selection will be added next."
+        "multipleExistingTrays"
       );
 
       return;
@@ -308,7 +311,7 @@ export function LandingScreen({
     );
 
     setFindTrayError(
-      "Hidden Rolls could not search for existing trays."
+      "existingTraySearchFailed"
     );
   } finally {
     if (
@@ -348,25 +351,13 @@ export function LandingScreen({
               {/* Scrollable terms content */}
               <ScrollView style={styles.modalScroll}>
                 <Text style={styles.modalText}>
-                  By using Hidden Rolls, you agree to the following:
-                  {"\n\n"}
-                  • This app is intended for tabletop gameplay entertainment.
-                  {"\n"}
-                  • Camera feeds are intended to be local. (No cloud storage by
-                  default.)
-                  {"\n"}
-                  • You are responsible for complying with local laws and table
-                  rules.
-                  {"\n"}
-                  • Use at your own risk. No warranties.
-                  {"\n\n"}
-                  (Will replace this placeholder with real terms later.)
+                  {t.termsBody}
                 </Text>
               </ScrollView>
 
               {/* Error message if user declined */}
               {!!termsError && (
-                <Text style={styles.modalError}>{termsError}</Text>
+                <Text style={styles.modalError}>{t[termsError]}</Text>
               )}
 
               {/* Modal action buttons */}
@@ -375,7 +366,7 @@ export function LandingScreen({
                   style={[styles.modalBtn, styles.modalBtnGhost]}
                   onPress={() => {
                     setTermsError(
-                      "You must agree to continue using the app."
+                      "termsRequired"
                     );
                     setShowTerms(false);
                   }}
@@ -420,8 +411,8 @@ export function LandingScreen({
             >
               <Text style={styles.primaryBtnText}>
                 {openingTray
-                  ? "Opening Tray..."
-                  : "Open Tray"}
+                  ? t.openingTray
+                  : t.openTray}
               </Text>
             </Pressable>
 
@@ -433,7 +424,7 @@ export function LandingScreen({
               onPress={handleForgetTray}
             >
               <Text style={styles.primaryBtnText}>
-                Forget Tray
+                {t.forgetTray}
               </Text>
             </Pressable>
           </View>
@@ -452,7 +443,7 @@ export function LandingScreen({
               }}
             >
               <Text style={styles.primaryBtnText}>
-                Set Up New Tray
+                {t.setupNewTray}
               </Text>
             </Pressable>
 
@@ -469,14 +460,14 @@ export function LandingScreen({
             >
               <Text style={styles.primaryBtnText}>
                 {findingExistingTray
-                  ? "Searching..."
-                  : "Find Existing Tray"}
+                  ? t.searchingTrays
+                  : t.findExistingTray}
               </Text>
             </Pressable>
 
             {!!findTrayError && (
               <Text style={styles.modalError}>
-                {findTrayError}
+                {t[findTrayError]}
               </Text>
             )}
           </View>

@@ -92,7 +92,8 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
     if (!result.success) {
       Alert.alert(
         t.lightControlErrorTitle,
-        t.lightControlErrorBody
+        t.lightControlErrorBody,
+        [{ text: t.ok }]
       );
 
       return;
@@ -110,7 +111,8 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
 
     Alert.alert(
       t.lightControlErrorTitle,
-      t.lightControlErrorBody
+      t.lightControlErrorBody,
+      [{ text: t.ok }]
     );
   } finally {
     setLightIsChanging(false);
@@ -141,7 +143,8 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
 
       Alert.alert(
         t.lightControlErrorTitle,
-        t.lightControlErrorBody
+        t.lightControlErrorBody,
+        [{ text: t.ok }]
       );
 
       return;
@@ -161,7 +164,8 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
 
     Alert.alert(
       t.lightControlErrorTitle,
-      t.lightControlErrorBody
+      t.lightControlErrorBody,
+      [{ text: t.ok }]
     );
   } finally {
     setLightIsChanging(false);
@@ -258,11 +262,11 @@ if (!cameraHost) {
   return (
     <View style={styles.liveRoot}>
       <Text style={styles.streamErrorTitle}>
-        No tray paired
+        {t.noTrayPairedTitle}
       </Text>
 
       <Text style={styles.streamErrorBody}>
-        Set up a Hidden Rolls tray before opening the live view.
+        {t.noTrayPairedBody}
       </Text>
 
       <Pressable

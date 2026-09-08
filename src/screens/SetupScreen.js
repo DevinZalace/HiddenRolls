@@ -47,7 +47,8 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
       if (!bluetoothStatus.supported) {
         Alert.alert(
           t.bluetoothUnavailableTitle,
-          t.bluetoothUnavailableBody
+          t.bluetoothUnavailableBody,
+          [{ text: t.ok }]
         );
         return;
       }
@@ -60,14 +61,19 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
       if (!bluetoothStatus.permissionsGranted) {
         Alert.alert(
           t.bluetoothPermissionTitle,
-          t.bluetoothPermissionBody
+          t.bluetoothPermissionBody,
+          [{ text: t.ok }]
         );
         return;
       }
 
       // The adapter must be enabled before scanning can begin.
       if (!bluetoothStatus.enabled) {
-        Alert.alert(t.bluetoothOffTitle, t.bluetoothOffBody);
+        Alert.alert(
+          t.bluetoothOffTitle,
+          t.bluetoothOffBody,
+          [{ text: t.ok }]
+        );
         return;
       }
 
@@ -76,7 +82,11 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
     } catch (error) {
       console.error("Bluetooth readiness check failed:", error);
 
-      Alert.alert(t.bluetoothErrorTitle, t.bluetoothErrorBody);
+      Alert.alert(
+        t.bluetoothErrorTitle,
+        t.bluetoothErrorBody,
+        [{ text: t.ok }]
+      );
     } finally {
       setCheckingBluetooth(false);
     }

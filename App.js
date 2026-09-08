@@ -177,6 +177,7 @@ export default function App() {
           {(props) => (
             <ScanTrayScreen
               {...props}
+              t={t}
               pendingTray={pendingTray}
               setPendingTray={setPendingTray}
               setPairedTray={setPairedTray}

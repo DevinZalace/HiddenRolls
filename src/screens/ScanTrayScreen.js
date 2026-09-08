@@ -35,7 +35,7 @@ import { usePreventRemove } from "@react-navigation/native";
  *
  * Flow: Camera permission -> Scan QR -> verify Wi-Fi -> BLE setup -> Wi-Fi provisioning
  */
-export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPairedTray }) {
+export function ScanTrayScreen({ navigation, t, pendingTray, setPendingTray, setPairedTray }) {
   // Identifies the current setup attempt.
   const setupAttemptRef = useRef(0);
   const savingPairingRef = useRef(false);
@@ -169,7 +169,7 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
 
         if (mountedRef.current) {
           setCleanupError(
-            "Hidden Rolls could not stop the previous setup. Try again."
+            "setupCleanupFailed"
           );
         }
 
@@ -228,7 +228,7 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
     setTraySetupState("unreachable");
 
     setDiscoveryError(
-      "Hidden Rolls could not find this tray nearby. Make sure the tray is powered on and ready for setup."
+      "trayDiscoveryFailed"
     );
   } finally {
     if (isCurrentAttempt()) {
@@ -277,7 +277,7 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
 
         stoppingSetupRef.current = true;
         setCleanupError(
-          "Hidden Rolls could not stop the previous setup. Try again."
+          "setupCleanupFailed"
         );
         return;
       }
@@ -349,7 +349,7 @@ export function ScanTrayScreen({ navigation, pendingTray, setPendingTray, setPai
 
       // Keep scanning paused until the user presses Scan Again.
       setScanError(
-        "This QR code is not a valid Hidden Rolls tray."
+        "invalidTrayQr"
       );
     }
   }
@@ -452,15 +452,15 @@ function handleResetTrayWifi() {
     setupAttemptRef.current === attemptId;
 
   Alert.alert(
-    "Reset Wi-Fi?",
-    `This will remove the Wi-Fi network saved on Hidden Rolls ${pendingTray.trayId} and restart the tray. You will need to set up Wi-Fi again.`,
+    t.resetWifiTitle,
+    t.resetWifiBody(pendingTray.trayId),
     [
       {
-        text: "Cancel",
+        text: t.cancel,
         style: "cancel",
       },
       {
-        text: "Reset & Continue",
+        text:  t.resetWifiConfirm,
         style: "destructive",
         onPress: async () => {
           if (
@@ -507,13 +507,13 @@ function handleResetTrayWifi() {
               }
 
               console.error(
-                "Tray restarted but was not found over Bluetooth:",
+                "resetTrayNotFound",
                 error
               );
 
               setTraySetupState("unreachable");
               setResetWifiError(
-                "The tray restarted, but Hidden Rolls could not find it over Bluetooth yet. Try Find Tray again."
+                "resetTrayNotFound"
               );
             }
           } catch (error) {
@@ -524,7 +524,7 @@ function handleResetTrayWifi() {
             console.error("Wi-Fi reset failed:", error);
 
             setResetWifiError(
-              "Hidden Rolls could not reset this tray's Wi-Fi."
+              "resetWifiFailed"
             );
           } finally {
             if (isCurrentAttempt()) {
@@ -573,7 +573,7 @@ function handleResetTrayWifi() {
       console.error("BLE tray connection failed:", error);
 
       setConnectionError(
-        "Hidden Rolls found the tray, but could not connect to it."
+        "trayConnectionFailed"
       );
     } finally {
       if (isCurrentAttempt()) {
@@ -628,14 +628,14 @@ function handleResetTrayWifi() {
           setTrayConnected(false);
 
           setWifiScanError(
-            "The Wi-Fi scan timed out. Reconnect to the tray and try again."
+            "wifiScanTimedOut"
           );
 
           return;
         }
 
         setWifiScanError(
-          "Hidden Rolls could not find nearby Wi-Fi networks."
+          "wifiScanFailed"
         );
       } finally {
       if (isCurrentAttempt()) {
@@ -793,7 +793,7 @@ function handleResetTrayWifi() {
           }
 
           setProvisionError(
-            "The tray did not confirm Wi-Fi setup and could not be reached on the network. Reconnect to the tray and try again."
+            "wifiProvisionTimedOut"
           );
 
           return;
@@ -813,11 +813,11 @@ function handleResetTrayWifi() {
 
       if (provisioningSucceeded) {
         setFinalizationError(
-          "The tray joined Wi-Fi, but Hidden Rolls could not reach it yet."
+          "wifiFinalizationFailed"
         );
       } else {
         setProvisionError(
-          "Hidden Rolls could not connect the tray to this Wi-Fi network. Check the password and try again."
+          "wifiProvisionFailed"
         );
       }
     } finally {
@@ -885,14 +885,14 @@ function handleResetTrayWifi() {
         <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>
             {cleanupError
-              ? "Setup could not stop"
-              : "Stopping previous setup..."}
+              ? t.setupCleanupErrorTitle
+              : t.setupStoppingTitle}
           </Text>
 
           {cleanupError ? (
             <>
               <Text style={styles.helpBody}>
-                {cleanupError}
+                {t[cleanupError]}
               </Text>
 
               <Pressable
@@ -903,7 +903,7 @@ function handleResetTrayWifi() {
                 onPress={resetProvisioningState}
               >
                 <Text style={styles.primaryBtnText}>
-                  Try Again
+                  {t.retry}
                 </Text>
               </Pressable>
             </>
@@ -918,7 +918,7 @@ function handleResetTrayWifi() {
     return (
       <View style={styles.setupRoot}>
         <Text style={styles.helpBody}>
-          Checking camera permission...
+          {t.cameraCheckingPermission}
         </Text>
       </View>
     );
@@ -930,12 +930,11 @@ function handleResetTrayWifi() {
       <View style={styles.setupRoot}>
         <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>
-            Camera permission required
+            {t.cameraPermissionTitle}
           </Text>
 
           <Text style={styles.helpBody}>
-            Hidden Rolls uses your camera to scan the
-            setup QR code included with your tray.
+            {t.cameraPermissionBody}
           </Text>
 
           <Pressable
@@ -943,7 +942,7 @@ function handleResetTrayWifi() {
             onPress={requestPermission}
           >
             <Text style={styles.primaryBtnText}>
-              Allow Camera
+              {t.allowCamera}
             </Text>
           </Pressable>
         </View>
@@ -963,7 +962,7 @@ function handleResetTrayWifi() {
       >
         <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>
-            Tray Found
+            {t.trayFoundTitle}
           </Text>
 
           <Text style={styles.helpBody}>
@@ -975,14 +974,14 @@ function handleResetTrayWifi() {
           </Text>
           {traySetupState === "checking" ? (
             <Text style={styles.helpBody}>
-              Checking tray...
+              {t.checkingTray}
             </Text>
           ) : null}
 
           {traySetupState === "existing" ? (
             <>
               <Text style={styles.helpBody}>
-                This tray is already connected to Wi-Fi.
+                {t.trayAlreadyConfigured}
               </Text>
 
               <Pressable
@@ -994,7 +993,7 @@ function handleResetTrayWifi() {
                 disabled={resettingTrayWifi || savingPairing}
               >
                 <Text style={styles.primaryBtnText}>
-                  Use This Tray
+                  {t.useThisTray}
                 </Text>
               </Pressable>
               <Pressable
@@ -1008,13 +1007,13 @@ function handleResetTrayWifi() {
               >
                 <Text style={styles.primaryBtnText}>
                   {resettingTrayWifi
-                    ? "Resetting Tray..."
-                    : "Reset Wi-Fi & Set Up Again"}
+                    ? t.resettingTray
+                    : t.resetWifiAndSetup}
                 </Text>
               </Pressable>
               {resetWifiError ? (
                 <Text style={styles.helpBody}>
-                  {resetWifiError}
+                  {t[resetWifiError]}
                 </Text>
               ) : null}
             </>
@@ -1022,13 +1021,13 @@ function handleResetTrayWifi() {
 
           {traySetupState === "ready" ? (
             <Text style={styles.helpBody}>
-              This tray is ready for setup.
+              {t.trayReady}
             </Text>
           ) : null}
 
           {traySetupState === "unreachable" ? (
             <Text style={styles.helpBody}>
-              Hidden Rolls could not reach this tray over Wi-Fi or Bluetooth.
+              {t.trayUnreachable}
             </Text>
           ) : null}
 
@@ -1045,14 +1044,14 @@ function handleResetTrayWifi() {
               disabled={findingTray}
             >
               <Text style={styles.primaryBtnText}>
-                {findingTray ? "Finding Tray..." : "Find Tray"}
+                {findingTray ? t.findingTray : t.findTray}
               </Text>
             </Pressable>
           ) : null}
 
           {trayFoundOverBle ? (
             <Text style={styles.helpBody}>
-              Tray found over Bluetooth.
+              {t.trayFoundBle}
             </Text>
           ) : null}
 
@@ -1068,20 +1067,20 @@ function handleResetTrayWifi() {
               disabled={connectingTray}
             >
               <Text style={styles.primaryBtnText}>
-                {connectingTray ? "Connecting..." : "Connect to Tray"}
+                {connectingTray ? t.connectingTray : t.connectToTray}
               </Text>
             </Pressable>
           ) : null}
 
           {trayConnected ? (
             <Text style={styles.helpBody}>
-              Tray connected over Bluetooth.
+              {t.trayConnectedBle}
             </Text>
           ) : null}
 
           {connectionError ? (
             <Text style={styles.helpBody}>
-              {connectionError}
+              {t[connectionError]}
             </Text>
           ) : null}
 
@@ -1103,7 +1102,7 @@ function handleResetTrayWifi() {
               }
             >
               <Text style={styles.primaryBtnText}>
-                {scanningWifi ? "Scanning Wi-Fi..." : "Scan Wi-Fi"}
+                {scanningWifi ? t.scanningWifi : t.scanWifi}
               </Text>
             </Pressable>
           ) : null}
@@ -1129,7 +1128,7 @@ function handleResetTrayWifi() {
                   </Text>
 
                   <Text style={styles.wifiNetworkSignal}>
-                    Signal: {network.rssi} dBm
+                    {t.signalStrength(network.rssi)}
                   </Text>
                 </View>
 
@@ -1146,14 +1145,14 @@ function handleResetTrayWifi() {
           {selectedNetwork && !wifiProvisioned ? (
             <View style={styles.wifiCredentials}>
               <Text style={styles.helpTitle}>
-                Connect to {selectedNetwork.ssid}
+                {t.connectToNetwork(selectedNetwork.ssid)}
               </Text>
 
               <TextInput
                 style={styles.wifiPasswordInput}
                 value={wifiPassword}
                 onChangeText={setWifiPassword}
-                placeholder="Wi-Fi password"
+                placeholder={t.wifiPassword}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -1171,8 +1170,8 @@ function handleResetTrayWifi() {
               >
                 <Text style={styles.primaryBtnText}>
                   {provisioningWifi
-                    ? "Connecting Tray..."
-                    : "Connect to Wi-Fi"}
+                    ? t.connectingTray
+                    : t.connectToWifi}
                 </Text>
               </Pressable>
             </View>
@@ -1181,41 +1180,41 @@ function handleResetTrayWifi() {
           {/* Display success message if Wi-Fi provisioning succeeded */}
           {wifiProvisioned ? (
             <Text style={styles.helpBody}>
-              Tray connected to Wi-Fi successfully.
+              {t.wifiConnected}
             </Text>
           ) : null}
 
           {/* Finalization state: Show message while waiting for tray to be reachable over Wi-Fi */}
           {finalizingSetup ? (
             <Text style={styles.helpBody}>
-              Wi-Fi connected. Starting your tray...
+              {t.startingTray}
             </Text>
           ) : null}
 
           {/* Display finalization error if the tray is not reachable after provisioning */}
           {finalizationError ? (
             <Text style={styles.helpBody}>
-              {finalizationError}
+              {t[finalizationError]}
             </Text>
           ) : null}
 
           {/* Display provisioning error message if it failed */}
           {provisionError ? (
             <Text style={styles.helpBody}>
-              {provisionError}
+              {t[provisionError]}
             </Text>
           ) : null}
 
           {/* Error messages */}
           {wifiScanError ? (
             <Text style={styles.helpBody}>
-              {wifiScanError}
+              {t[wifiScanError]}
             </Text>
           ) : null}
 
           {discoveryError ? (
             <Text style={styles.helpBody}>
-              {discoveryError}
+              {t[discoveryError]}
             </Text>
           ) : null}
 
@@ -1226,7 +1225,7 @@ function handleResetTrayWifi() {
             onPress={resetProvisioningState}
           >
             <Text style={styles.primaryBtnText}>
-              {savingPairing ? "Saving Tray..." : "Scan Again"}
+              {savingPairing ? t.savingTray : t.scanAgain}
             </Text>
           </Pressable>
 
@@ -1244,7 +1243,7 @@ function handleResetTrayWifi() {
             }}
           >
             <Text style={styles.primaryBtnText}>
-              Back
+              {t.back}
             </Text>
           </Pressable>
         </View>
@@ -1257,11 +1256,11 @@ function handleResetTrayWifi() {
   return (
     <View style={styles.setupRoot}>
       <Text style={styles.setupTitle}>
-        Scan Your Tray
+        {t.scanTitle}
       </Text>
 
       <Text style={styles.helpBody}>
-        Scan the QR code included with your Hidden Rolls tray.
+        {t.scanInstructions}
       </Text>
 
       {/* Camera view for QR code scanning - disabled after first scan */}
@@ -1284,7 +1283,7 @@ function handleResetTrayWifi() {
       {scanError ? (
         <View style={styles.helpCard}>
           <Text style={styles.helpBody}>
-            {scanError}
+            {t[scanError]}
           </Text>
 
           <Pressable
@@ -1293,7 +1292,7 @@ function handleResetTrayWifi() {
             onPress={resetProvisioningState}
           >
             <Text style={styles.primaryBtnText}>
-              {savingPairing ? "Saving Tray..." : "Scan Again"}
+              {savingPairing ? t.savingTray : t.scanAgain}
             </Text>
           </Pressable>
         </View>
@@ -1314,7 +1313,7 @@ function handleResetTrayWifi() {
         }}
       >
         <Text style={styles.primaryBtnText}>
-          Back
+          {t.back}
         </Text>
       </Pressable>
     </View>
