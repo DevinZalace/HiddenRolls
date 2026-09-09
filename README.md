@@ -1,8 +1,8 @@
 # Hidden Rolls
 
-Hidden Rolls is a hardware-software prototype for a camera-equipped tabletop dice tray and its React Native companion app.
+Hidden Rolls is a cross-platform hardware-software prototype for a camera-equipped tabletop dice tray and its React Native companion app.
 
-The tray uses an ESP32-CAM to provide a live view of hidden dice rolls over a local Wi-Fi network. The companion app handles tray setup, local discovery, persistent pairing, live video, connection monitoring, and physical light control.
+The tray uses an ESP32-CAM to provide a live view of hidden dice rolls over a local Wi-Fi network. The companion app handles tray setup, Bluetooth Wi-Fi provisioning, local discovery, persistent pairing, live video, connection monitoring, recovery, and physical light control.
 
 ## Features
 
@@ -21,7 +21,8 @@ The tray uses an ESP32-CAM to provide a live view of hidden dice rolls over a lo
 - Physical light on/off control
 - Adjustable LED brightness
 - English and Spanish interface support
-- Tray-agnostic routing with no hard-coded device hostname or IP
+- Tray-specific routing with no hard-coded device hostname or IP
+- Android and iOS native provisioning implementations
 
 ### ESP32-CAM Firmware
 
@@ -29,7 +30,8 @@ The tray uses an ESP32-CAM to provide a live view of hidden dice rolls over a lo
 - HTTP status and light-control endpoints
 - BLE Wi-Fi provisioning
 - Saved Wi-Fi credential reconnect
-- Automatic setup mode when no saved Wi-Fi exists
+- Automatic provisioning when no saved Wi-Fi exists
+- Automatic recovery when saved Wi-Fi is no longer reachable
 - Per-tray provisioning identity and mDNS hostname
 - `_hiddenrolls._tcp` mDNS service advertising
 - Tray identity exposed through `/status`
@@ -58,11 +60,13 @@ If a scanned tray is already configured, the app can either reuse it immediately
 
 Already-configured trays can also be rediscovered over the local network using mDNS if the app pairing is lost.
 
+If saved Wi-Fi credentials can no longer connect, the tray automatically clears the unusable credentials and returns to Bluetooth provisioning.
+
 ## Status
 
 Hidden Rolls is an active hardware-software prototype.
 
-Currently implemented and physically tested:
+The complete Android setup and operating flow has been physically tested with prototype hardware, including:
 
 - QR onboarding
 - Bluetooth provisioning
@@ -71,15 +75,19 @@ Currently implemented and physically tested:
 - LAN tray discovery
 - Existing-tray recovery
 - Wi-Fi reset and reprovisioning
+- Automatic failed-Wi-Fi recovery
 - Live camera streaming
 - Connection monitoring and recovery
 - Physical light and brightness control
 
+An equivalent native iOS provisioning implementation has also been completed and successfully compiled through an EAS iOS simulator build. Physical iPhone testing is still pending.
+
 Planned work includes:
 
-- Physical recovery for trays stranded on an unavailable Wi-Fi network
-- Multi-tray management
-- Production hardware and enclosure hardening
+- Physical iOS device validation
+- Production hardware and enclosure development
+- UI, branding, and visual polish
+- Pre-release product and crowdfunding preparation
 
 ## Built With
 
@@ -87,12 +95,14 @@ Planned work includes:
 - Expo
 - JavaScript / TypeScript
 - Kotlin
+- Swift
 - React Native WebView
 - AI Thinker ESP32-CAM
 - Arduino
 - Bluetooth Low Energy
-- MJPEG streaming
+- CoreBluetooth
 - mDNS / DNS-SD
+- MJPEG streaming
 
 ## Author
 
