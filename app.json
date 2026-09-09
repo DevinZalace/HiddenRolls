@@ -14,8 +14,25 @@
       "resizeMode": "cover",
       "backgroundColor": "#000000"
     },
+    "locales": {
+      "en": "src/localization/en.json",
+      "es": "src/localization/es.json"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dntmfg.hiddenrolls",
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "NSBluetoothAlwaysUsageDescription": "Allow Hidden Rolls to connect to and configure your tray over Bluetooth.",
+        "NSLocalNetworkUsageDescription": "Allow Hidden Rolls to find and connect to your tray on your local network.",
+        "NSBonjourServices": [
+          "_hiddenrolls._tcp"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,32 +40,38 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.dntmfg.hiddenrolls"
+      "package": "com.dntmfg.hiddenrolls",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-    "expo-font",
-    [
-      "expo-build-properties",
-      {
-        "android": {
-          "extraMavenRepos": [
-            "https://jitpack.io"
-          ]
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraMavenRepos": [
+              "https://jitpack.io"
+            ]
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
         }
-      }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Hidden Rolls to scan your tray QR code.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ]
     ],
-  [
-    "expo-camera",
-    {
-      "cameraPermission": "Allow Hidden Rolls to scan your tray QR code.",
-      "recordAudioAndroid": false,
-      "barcodeScannerEnabled": true
-    }
-  ]
-],
     "extra": {
       "eas": {
         "projectId": "565ace31-eca9-464f-9920-63265de0eae5"
