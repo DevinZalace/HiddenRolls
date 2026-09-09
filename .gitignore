@@ -47,8 +47,14 @@ firmware/CameraWebServer1/tray_config.h
 # Generated per-device manufacturing artifacts contain provisioning secrets
 device_artifacts/
 
-# Local Android/Gradle build cache
-modules/hidden-rolls-provisioning/android/.gradle/
+# Local Gradle caches
+**/.gradle/
+
+# Xcode / CocoaPods local artifacts
+**/DerivedData/
+**/xcuserdata/
+*.xcuserstate
+**/Pods/
 
 # Local VS Code workspace preferences
 .vscode/settings.json

@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Permite que Hidden Rolls escanee el código QR de tu bandeja.",
+    "NSBluetoothAlwaysUsageDescription": "Permite que Hidden Rolls se conecte y configure tu bandeja mediante Bluetooth.",
+    "NSLocalNetworkUsageDescription": "Permite que Hidden Rolls encuentre y se conecte a tu bandeja en la red local."
+  }
+}

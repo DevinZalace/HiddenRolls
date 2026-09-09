@@ -1,0 +1,7 @@
+{
+  "ios": {
+    "NSCameraUsageDescription": "Allow Hidden Rolls to scan your tray QR code.",
+    "NSBluetoothAlwaysUsageDescription": "Allow Hidden Rolls to connect to and configure your tray over Bluetooth.",
+    "NSLocalNetworkUsageDescription": "Allow Hidden Rolls to find and connect to your tray on your local network."
+  }
+}

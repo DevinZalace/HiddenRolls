@@ -1,8 +1,13 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "apple"],
   "android": {
     "modules": [
       "expo.modules.hiddenrollsprovisioning.HiddenRollsProvisioningModule"
+    ]
+  },
+  "apple": {
+    "modules": [
+      "HiddenRollsProvisioningModule"
     ]
   }
 }
