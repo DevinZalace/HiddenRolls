@@ -39,6 +39,7 @@ import {
 import {
   savePairedTray,
 } from "../../services/pairedTrayService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 /**
  * LandingScreen Component
  *
@@ -59,6 +60,8 @@ export function LandingScreen({
   t,
   language,
   setLanguage,
+  languageChosen,
+  setLanguageChosen,
   showTerms,
   setShowTerms,
   termsError,
@@ -337,6 +340,74 @@ export function LandingScreen({
         {/* Title */}
         <Text style={styles.landingTitle}>{t.landingTitle}</Text>
 
+        {/* First-launch language selection */}
+        <Modal
+          visible={!languageChosen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {}}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>
+                Choose Language / Elige idioma
+              </Text>
+
+              <View style={styles.modalBtnRow}>
+                <Pressable
+                  style={[styles.modalBtn, styles.modalBtnPrimary]}
+                  onPress={async () => {
+                    setLanguage("en");
+                    setLanguageChosen(true);
+                    setShowTerms(true);
+
+                    try {
+                      await AsyncStorage.setItem(
+                        "hiddenRolls.language",
+                        "en"
+                      );
+                    } catch (error) {
+                      console.error(
+                        "Failed to save language preference:",
+                        error
+                      );
+                    }
+                  }}
+                >
+                  <Text style={styles.modalBtnText}>
+                    English
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.modalBtn, styles.modalBtnPrimary]}
+                  onPress={async () => {
+                    setLanguage("es");
+                    setLanguageChosen(true);
+                    setShowTerms(true);
+
+                    try {
+                      await AsyncStorage.setItem(
+                        "hiddenRolls.language",
+                        "es"
+                      );
+                    } catch (error) {
+                      console.error(
+                        "Failed to save language preference:",
+                        error
+                      );
+                    }
+                  }}
+                >
+                  <Text style={styles.modalBtnText}>
+                    Español
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* Terms & Conditions Modal */}
         <Modal
           visible={showTerms}
@@ -376,10 +447,22 @@ export function LandingScreen({
 
                 <Pressable
                   style={[styles.modalBtn, styles.modalBtnPrimary]}
-                  onPress={() => {
-                    setTermsAccepted(true);
-                    setShowTerms(false);
-                    navigation.navigate("Setup");
+                  onPress={async () => {
+                    try {
+                      await AsyncStorage.setItem(
+                        "hiddenRolls.termsVersion",
+                        "1"
+                      );
+
+                      setTermsAccepted(true);
+                      setTermsError("");
+                      setShowTerms(false);
+                    } catch (error) {
+                      console.error(
+                        "Failed to save Terms acceptance:",
+                        error
+                      );
+                    }
                   }}
                 >
                   <Text style={styles.modalBtnText}>{t.agree}</Text>
@@ -429,7 +512,7 @@ export function LandingScreen({
             </Pressable>
           </View>
         ) : (
-          <View>
+          <View style={styles.landingActions}>
             <Pressable
               style={styles.primaryBtn}
               onPress={() => {
@@ -455,7 +538,16 @@ export function LandingScreen({
                   opacity: 0.6,
                 },
               ]}
-              onPress={handleFindExistingTray}
+              onPress={() => {
+                setTermsError("");
+
+                if (!termsAccepted) {
+                  setShowTerms(true);
+                  return;
+                }
+
+                handleFindExistingTray();
+              }}
               disabled={findingExistingTray}
             >
               <Text style={styles.primaryBtnText}>

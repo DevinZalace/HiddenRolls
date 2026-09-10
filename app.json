@@ -5,13 +5,13 @@
     "description": "Expo configuration for the Hidden Rolls mobile experience.",
     "slug": "hidden-rolls",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "orientation": "default",
+    "icon": "./assets/HR-Icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
+      "image": "./assets/HR-Icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
     "locales": {
@@ -20,6 +20,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.dntmfg.hiddenrolls",
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
@@ -36,7 +37,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/HR-Icon.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,

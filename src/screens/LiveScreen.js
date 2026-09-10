@@ -22,6 +22,7 @@ import {
   setCameraLightIntensity,
 } from "../../services/cameraService";
 import { styles } from "../theme/styles";
+import * as ScreenOrientation from "expo-screen-orientation";
 
 /**
  * LiveScreen Component
@@ -172,6 +173,19 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
   }
 }
 
+  // Lock screen orientation to landscape while on this screen.
+  useEffect(() => {
+  void ScreenOrientation.lockAsync(
+    ScreenOrientation.OrientationLock.LANDSCAPE
+  );
+
+  return () => {
+    void ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.PORTRAIT_UP
+    );
+  };
+}, []);
+
   useEffect(() => {
     if (!cameraHost) {
     return;
@@ -253,10 +267,6 @@ if (Number.isFinite(reportedLightIntensity)) {
   setStreamReloadKey((currentKey) => currentKey + 1);
 }
 
-const brightnessPercent = Math.round(
-  (sliderValue / CAMERA_CONFIG.lightMaximumIntensity) * 100
-);
-
 // Render Logic
 if (!cameraHost) {
   return (
@@ -291,7 +301,7 @@ const esp32StreamUrl =
 
   return (
     <View style={styles.liveRoot}>
-      <StatusBar style="light" />
+      <StatusBar hidden />
 
       <View style={styles.videoArea}>
         <WebView
@@ -301,6 +311,8 @@ const esp32StreamUrl =
           javaScriptEnabled={false}
           domStorageEnabled={false}
           cacheEnabled={false}
+          scrollEnabled={false}
+          bounces={false}
           onShouldStartLoadWithRequest={(request) =>
             request.url === esp32StreamUrl ||
             request.url === "about:blank"
@@ -330,50 +342,38 @@ const esp32StreamUrl =
             </Pressable>
           </View>
         )}
-      </View>
 
-      <View style={styles.lightSliderPanel}>
-        <View style={styles.lightSliderHeader}>
-          <Text style={styles.lightSliderLabel}>
-            {t.brightness}
-          </Text>
-
-          <Text style={styles.lightSliderValue}>
-            {brightnessPercent}%
-          </Text>
-        </View>
-
-        <Slider
-          style={styles.lightSlider}
-          minimumValue={CAMERA_CONFIG.lightMinimumIntensity}
-          maximumValue={CAMERA_CONFIG.lightMaximumIntensity}
-          step={1}
-          value={sliderValue}
-          disabled={lightIsChanging || streamError}
-          onSlidingStart={() => {
-            isAdjustingLight.current = true;
-          }}
-          onValueChange={(value) => {
-            setSliderValue(value);
-          }}
-          onSlidingComplete={updateLightBrightness}
-          minimumTrackTintColor="#00e426"
-          maximumTrackTintColor="#5a5a5a"
-          thumbTintColor="#ffffff"
-        />
-      </View>
-
-      <View style={styles.controlsBar}>
+        <View style={styles.liveHud}>
+        {lightOn && (
+          <Slider
+            style={styles.liveBrightnessSlider}
+            minimumValue={CAMERA_CONFIG.lightMinimumIntensity}
+            maximumValue={CAMERA_CONFIG.lightMaximumIntensity}
+            step={1}
+            value={sliderValue}
+            disabled={lightIsChanging || streamError}
+            onSlidingStart={() => {
+              isAdjustingLight.current = true;
+            }}
+            onValueChange={(value) => {
+              setSliderValue(value);
+            }}
+            onSlidingComplete={updateLightBrightness}
+            minimumTrackTintColor="#00e426"
+            maximumTrackTintColor="rgba(255,255,255,0.28)"
+            thumbTintColor="#ffffff"
+          />
+        )}
         <Pressable
           disabled={lightIsChanging}
           style={[
-            styles.controlBtn,
-            lightOn ? styles.controlBtnOn : null,
-            lightIsChanging ? styles.controlBtnDisabled : null,
+            styles.liveHudBtn,
+            lightOn && styles.liveHudBtnOn,
+            lightIsChanging && styles.controlBtnDisabled,
           ]}
           onPress={toggleCameraLight}
         >
-          <Text style={styles.controlBtnText}>
+          <Text style={styles.liveHudBtnText}>
             {lightIsChanging
               ? t.lightUpdating
               : `${t.light}: ${lightOn ? t.on : t.off}`}
@@ -381,17 +381,20 @@ const esp32StreamUrl =
         </Pressable>
 
         <Pressable
-          style={styles.controlBtn}
-          onPress={() => navigation.reset({
-            index: 0,
-            routes: [{ name: "Landing" }],
-          })}
+          style={styles.liveHudBtn}
+          onPress={() =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Landing" }],
+            })
+          }
         >
-          <Text style={styles.controlBtnText}>
+          <Text style={styles.liveHudBtnText}>
             {t.back}
           </Text>
         </Pressable>
       </View>
     </View>
+  </View>
   );
 }

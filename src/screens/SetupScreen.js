@@ -166,7 +166,7 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
 
       {/* ===== Back Button ===== */}
       <View style={styles.setupBottom}>
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.goBack()}>
+        <Pressable style={[styles.primaryBtn, styles.backBtn]} onPress={() => navigation.goBack()}>
           <Text style={styles.primaryBtnText}>{t.back}</Text>
         </Pressable>
       </View>

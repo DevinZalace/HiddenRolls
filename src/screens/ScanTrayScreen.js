@@ -1300,7 +1300,7 @@ function handleResetTrayWifi() {
 
       {/* Back button to return to setup */}
       <Pressable
-        style={styles.primaryBtn}
+        style={[styles.primaryBtn, styles.backBtn]}
         disabled={savingPairing}
         onPress={() => {
           navigation.reset({

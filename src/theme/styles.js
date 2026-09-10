@@ -70,6 +70,20 @@ primaryBtnText: {
   fontSize: 16,
   textAlign: "center",
 },
+backBtn: {
+  backgroundColor: "rgba(255,255,255,0.18)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.28)",
+  paddingVertical: 12,
+  borderRadius: 14,
+  paddingHorizontal: 24,
+  minWidth: 110,
+},
+landingActions: {
+  width: "100%",
+  maxWidth: 520,
+  alignSelf: "center",
+},
 setupRoot: {
   flex: 1,
   backgroundColor: "#0b0b0b",
@@ -203,12 +217,7 @@ liveRoot: {
 
 videoArea: {
   flex: 1,
-  marginTop: 12,
-  marginHorizontal: 12,
-  borderRadius: 18,
-  borderWidth: 1,
-  borderColor: "rgba(255,255,255,0.12)",
-  backgroundColor: "rgba(255,255,255,0.04)",
+  backgroundColor: "#000",
   overflow: "hidden",
   position: "relative",
 },
@@ -458,9 +467,44 @@ setupScrollContent: {
   flexGrow: 1,
   paddingBottom: 40,
 },
+liveHud: {
+  position: "absolute",
+  left: 12,
+  right: 12,
+  bottom: 12,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: 8,
+  zIndex: 20,
+},
 
-setupScrollContent: {
-  flexGrow: 1,
-  paddingBottom: 40,
+liveBrightnessSlider: {
+  flex: 1,
+  height: 24,
+},
+
+liveHudBtn: {
+  minWidth: 76,
+  paddingVertical: 8,
+  paddingHorizontal: 14,
+  borderRadius: 999,
+  backgroundColor: "rgba(0,0,0,0.68)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.22)",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+liveHudBtnOn: {
+  backgroundColor: "rgba(0,0,0,0.78)",
+  borderColor: "rgba(255,255,255,0.42)",
+},
+
+liveHudBtnText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+  textAlign: "center",
 },
 });
