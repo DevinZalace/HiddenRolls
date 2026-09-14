@@ -218,13 +218,26 @@ liveRoot: {
 videoArea: {
   flex: 1,
   backgroundColor: "#000",
+  alignItems: "center",
+  justifyContent: "center",
   overflow: "hidden",
-  position: "relative",
 },
 
 cameraStream: {
   flex: 1,
   width: "100%",
+  backgroundColor: "#000",
+},
+
+cameraFrame: {
+  height: "100%",
+  aspectRatio: 3 / 2,
+  maxWidth: "100%",
+  position: "relative",
+  overflow: "hidden",
+
+  borderWidth: 2,
+  borderColor: "rgba(255,255,255,0.35)",
   backgroundColor: "#000",
 },
 
@@ -507,4 +520,5 @@ liveHudBtnText: {
   fontSize: 13,
   textAlign: "center",
 },
+
 });

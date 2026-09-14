@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Platform, Pressable, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { WebView } from "react-native-webview";
 import { CAMERA_CONFIG, buildCameraStreamUrl } from "../../config/camera";
@@ -23,6 +23,8 @@ import {
 } from "../../services/cameraService";
 import { styles } from "../theme/styles";
 import * as ScreenOrientation from "expo-screen-orientation";
+import * as NavigationBar from "expo-navigation-bar";
+
 
 /**
  * LiveScreen Component
@@ -175,16 +177,24 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
 
   // Lock screen orientation to landscape while on this screen.
   useEffect(() => {
-  void ScreenOrientation.lockAsync(
-    ScreenOrientation.OrientationLock.LANDSCAPE
-  );
-
-  return () => {
     void ScreenOrientation.lockAsync(
-      ScreenOrientation.OrientationLock.PORTRAIT_UP
+      ScreenOrientation.OrientationLock.LANDSCAPE
     );
-  };
-}, []);
+
+    if (Platform.OS === "android") {
+      void NavigationBar.setVisibilityAsync("hidden");
+    }
+
+    return () => {
+      void ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP
+      );
+
+      if (Platform.OS === "android") {
+        void NavigationBar.setVisibilityAsync("visible");
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!cameraHost) {
@@ -304,7 +314,8 @@ const esp32StreamUrl =
       <StatusBar hidden />
 
       <View style={styles.videoArea}>
-        <WebView
+        <View style={styles.cameraFrame}>
+          <WebView
           key={streamReloadKey}
           source={{ uri: esp32StreamUrl }}
           originWhitelist={["http://*"]}
@@ -396,5 +407,6 @@ const esp32StreamUrl =
       </View>
     </View>
   </View>
-  );
+</View>
+);
 }
