@@ -38,6 +38,7 @@ import {
   loadPairedTray,
 } from "./services/pairedTrayService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SettingsScreen } from "./src/screens/SettingsScreen";
 
 // Enable native screen optimizations for the navigation stack.
 enableScreens(true);
@@ -322,6 +323,18 @@ export default function App() {
           {({ navigation }) => (
             <SetupScreen
               navigation={navigation}
+              t={t}
+              language={language}
+              setLanguage={setLanguage}
+            />
+          )}
+        </Stack.Screen>
+
+        {/* Settings: app settings and preferences. */}
+        <Stack.Screen name="Settings">
+          {(props) => (
+            <SettingsScreen
+              {...props}
               t={t}
               language={language}
               setLanguage={setLanguage}

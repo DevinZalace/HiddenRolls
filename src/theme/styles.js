@@ -102,6 +102,7 @@ setupTop: {
   alignItems: "center",
   width: "100%",
   paddingTop: 18,
+  position: "relative",
 },
 setupBottom: {
   width: "100%",
@@ -109,46 +110,6 @@ setupBottom: {
   paddingBottom: 28,
   paddingTop: 6,
 },
-sectionLabel: {
-  color: "rgba(255,255,255,0.75)",
-  fontFamily: "Inter_400Regular",
-  fontSize: 14,
-  marginTop: 6,
-  marginBottom: 8,
-  alignSelf: "flex-start",
-},
-
-langRow: {
-  flexDirection: "row",
-  gap: 10,
-  alignSelf: "stretch",
-  marginBottom: 18,
-},
-
-chip: {
-  paddingVertical: 10,
-  paddingHorizontal: 14,
-  borderRadius: 999,
-  borderWidth: 1,
-},
-
-chipActive: {
-  backgroundColor: "rgba(255,255,255,0.18)",
-  borderColor: "rgba(255,255,255,0.35)",
-},
-
-chipInactive: {
-  backgroundColor: "transparent",
-  borderColor: "rgba(255,255,255,0.18)",
-},
-
-chipText: {
-  fontFamily: "Inter_400Regular",
-  fontSize: 14,
-},
-
-chipTextActive: { color: "white" },
-chipTextInactive: { color: "rgba(255,255,255,0.7)" },
 
 helpCard: {
   alignSelf: "stretch",
@@ -609,5 +570,127 @@ cameraToggleText: {
   color: "#ffffff",
   fontFamily: "Inter_400Regular",
   fontSize: 13,
+},
+
+settingsRoot: {
+  flex: 1,
+  backgroundColor: "#0b0b0b",
+  paddingHorizontal: 24,
+  paddingVertical: 24,
+},
+
+settingsHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  width: "100%",
+},
+
+settingsTitle: {
+  color: "#ffffff",
+  fontFamily: "Cinzel_700Bold",
+  fontSize: 28,
+  marginTop: 32,
+},
+
+settingsCard: {
+  width: "100%",
+  padding: 16,
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.12)",
+  backgroundColor: "rgba(255,255,255,0.05)",
+},
+
+settingsBackBtn: {
+  marginTop: 32,
+  paddingVertical: 8,
+  paddingHorizontal: 14,
+  borderRadius: 999,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.22)",
+  backgroundColor: "rgba(255,255,255,0.08)",
+},
+
+settingsBackBtnText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+},
+
+setupSettingsBtn: {
+  position: "absolute",
+  marginTop: 24,
+  top: 0,
+  right: 0,
+  width: 42,
+  height: 42,
+  borderRadius: 999,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "rgba(255,255,255,0.08)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.20)",
+},
+
+setupSettingsBtnText: {
+  color: "#ffffff",
+  fontSize: 18,
+},
+
+settingsSection: {
+  marginTop: 28,
+  width: "100%",
+},
+
+settingsSectionLabel: {
+  color: "rgba(255,255,255,0.55)",
+  fontFamily: "Inter_400Regular",
+  fontSize: 12,
+  textTransform: "uppercase",
+  letterSpacing: 1.2,
+  marginBottom: 8,
+},
+
+settingsSectionDescription: {
+  marginTop: 5,
+  marginBottom: 14,
+  color: "rgba(255,255,255,0.65)",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+  lineHeight: 18,
+},
+
+settingsSectionTitle: {
+  color: "#ffffff",
+  fontFamily: "Cinzel_700Bold",
+  fontSize: 18,
+  marginBottom: 12,
+},
+
+settingsLanguageRow: {
+  flexDirection: "row",
+  gap: 10,
+},
+
+settingsLanguageBtn: {
+  flex: 1,
+  paddingVertical: 12,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.18)",
+  backgroundColor: "transparent",
+  alignItems: "center",
+},
+
+settingsLanguageBtnActive: {
+  backgroundColor: "rgba(255,255,255,0.18)",
+  borderColor: "rgba(255,255,255,0.35)",
+},
+
+settingsLanguageBtnText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 14,
 },
 });

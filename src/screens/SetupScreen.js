@@ -96,49 +96,15 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
       <View style={styles.setupTop}>
         <Text style={styles.setupTitle}>{t.setupTitle}</Text>
 
-        {/* ===== Language Selection ===== */}
-        <Text style={styles.sectionLabel}>{t.languageLabel}</Text>
-        <View style={styles.langRow}>
-          {/* English button */}
-          <Pressable
-            onPress={() => setLanguage("en")}
-            style={[
-              styles.chip,
-              language === "en" ? styles.chipActive : styles.chipInactive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                language === "en"
-                  ? styles.chipTextActive
-                  : styles.chipTextInactive,
-              ]}
-            >
-              {t.english}
-            </Text>
-          </Pressable>
-
-          {/* Spanish button */}
-          <Pressable
-            onPress={() => setLanguage("es")}
-            style={[
-              styles.chip,
-              language === "es" ? styles.chipActive : styles.chipInactive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                language === "es"
-                  ? styles.chipTextActive
-                  : styles.chipTextInactive,
-              ]}
-            >
-              {t.spanish}
-            </Text>
-          </Pressable>
-        </View>
+        {/* ===== Settings Cog ===== */}
+        <Pressable
+          style={styles.setupSettingsBtn}
+          onPress={() => navigation.navigate("Settings")}
+        >
+          <Text style={styles.setupSettingsBtnText}>
+            ⚙
+          </Text>
+        </Pressable>
 
         {/* ===== Connection Instructions & Button ===== */}
         <Text style={styles.sectionLabel}>{t.connectionTitle}</Text>

@@ -28,13 +28,13 @@ import * as NavigationBar from "expo-navigation-bar";
 
 // Camera effect options for the ESP32-CAM device.
 const CAMERA_EFFECT_OPTIONS = [
-  { label: "Normal", value: 0 },
-  { label: "Negative", value: 1 },
-  { label: "Grayscale", value: 2 },
-  { label: "Red Tint", value: 3 },
-  { label: "Green Tint", value: 4 },
-  { label: "Blue Tint", value: 5 },
-  { label: "Sepia", value: 6 },
+  { labelKey: "cameraEffectNormal", value: 0 },
+  { labelKey: "cameraEffectNegative", value: 1 },
+  { labelKey: "cameraEffectGrayscale", value: 2 },
+  { labelKey: "cameraEffectRedTint", value: 3 },
+  { labelKey: "cameraEffectGreenTint", value: 4 },
+  { labelKey: "cameraEffectBlueTint", value: 5 },
+  { labelKey: "cameraEffectSepia", value: 6 },
 ];
 
 /**
@@ -593,7 +593,7 @@ const esp32StreamUrl =
           <View style={styles.cameraSettingsPanel}>
             <View style={styles.cameraSettingsHeader}>
               <Text style={styles.cameraSettingsTitle}>
-                Camera Settings
+                {t.cameraSettings}
               </Text>
 
               <Pressable
@@ -607,7 +607,7 @@ const esp32StreamUrl =
 
             <View style={styles.cameraSettingCompactRow}>
               <Text style={styles.cameraSettingCompactLabel}>
-                Image Brightness
+                {t.imageBrightness}
               </Text>
 
               <Slider
@@ -633,7 +633,7 @@ const esp32StreamUrl =
 
             <View style={styles.cameraSettingCompactRow}>
               <Text style={styles.cameraSettingCompactLabel}>
-                Contrast
+                {t.cameraContrast}
               </Text>
 
               <Slider
@@ -659,7 +659,7 @@ const esp32StreamUrl =
 
             <View style={styles.cameraSettingCompactRow}>
               <Text style={styles.cameraSettingCompactLabel}>
-                Saturation
+                {t.cameraSaturation}
               </Text>
 
               <Slider
@@ -685,7 +685,7 @@ const esp32StreamUrl =
 
             <View style={styles.cameraEffectSection}>
               <Text style={styles.cameraSettingLabel}>
-                Effect
+                {t.cameraEffect}
               </Text>
 
               <Pressable
@@ -696,9 +696,11 @@ const esp32StreamUrl =
               >
                 <Text style={styles.cameraEffectSelectorText}>
                   {
-                    CAMERA_EFFECT_OPTIONS.find(
-                      (effect) => effect.value === cameraEffect
-                    )?.label ?? "Normal"
+                    t[
+                      CAMERA_EFFECT_OPTIONS.find(
+                        (effect) => effect.value === cameraEffect
+                      )?.labelKey ?? "cameraEffectNormal"
+                    ]
                   }
                 </Text>
 
@@ -722,7 +724,7 @@ const esp32StreamUrl =
                       }
                     >
                       <Text style={styles.cameraEffectOptionText}>
-                        {effect.label}
+                        {t[effect.labelKey]}
                       </Text>
                     </Pressable>
                   ))}
@@ -737,7 +739,7 @@ const esp32StreamUrl =
                   onPress={updateCameraMirror}
                 >
                   <Text style={styles.cameraToggleText}>
-                    Mirror: {cameraMirror ? "On" : "Off"}
+                    {t.cameraMirror}: {cameraMirror ? t.on : t.off}
                   </Text>
                 </Pressable>
 
@@ -748,9 +750,9 @@ const esp32StreamUrl =
                   ]}
                   onPress={updateCameraFlip}
                 >
-                  <Text style={styles.cameraToggleText}>
-                    Flip: {cameraFlip ? "On" : "Off"}
-                  </Text>
+                      <Text style={styles.cameraToggleText}>
+                        {t.cameraFlip}: {cameraFlip ? t.on : t.off}
+                      </Text>
                 </Pressable>
               </View>
             </View>
