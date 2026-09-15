@@ -131,6 +131,12 @@ export const copy = {
     setupCleanupFailed:
       "Hidden Rolls could not stop the previous setup. Try again.",
 
+    //Settings
+    settings: "Settings",
+    language: "Language",
+    appSettings: "App",
+    languageDescription: "Choose the language used throughout Hidden Rolls.",
+
     // Tray discovery and connection
     trayFoundTitle: "Tray Found",
     checkingTray: "Checking tray...",
@@ -191,6 +197,21 @@ export const copy = {
     noTrayPairedTitle: "No tray paired",
     noTrayPairedBody:
       "Set up a Hidden Rolls tray before opening the live view.",
+    cameraSettings: "Camera Settings",
+    imageBrightness: "Image Brightness",
+    cameraContrast: "Contrast",
+    cameraSaturation: "Saturation",
+    cameraEffect: "Effect",
+    cameraMirror: "Mirror",
+    cameraFlip: "Flip",
+
+    cameraEffectNormal: "Normal",
+    cameraEffectNegative: "Negative",
+    cameraEffectGrayscale: "Grayscale",
+    cameraEffectRedTint: "Red Tint",
+    cameraEffectGreenTint: "Green Tint",
+    cameraEffectBlueTint: "Blue Tint",
+    cameraEffectSepia: "Sepia",
   },
   es: {
     setupTitle: "Configuración",
@@ -309,6 +330,12 @@ export const copy = {
     setupCleanupFailed:
       "Hidden Rolls no pudo detener la configuración anterior. Inténtalo de nuevo.",
 
+    //Settings
+    settings: "Ajustes",
+    language: "Idioma",
+    appSettings: "Aplicación",
+    languageDescription: "Elige el idioma utilizado en Hidden Rolls.",
+
     // Tray discovery and connection
     trayFoundTitle: "Bandeja encontrada",
     checkingTray: "Comprobando bandeja...",
@@ -369,5 +396,20 @@ export const copy = {
     noTrayPairedTitle: "No hay ninguna bandeja vinculada",
     noTrayPairedBody:
       "Configura una bandeja Hidden Rolls antes de abrir la vista en directo.",
+    cameraSettings: "Ajustes de Cámara",
+    imageBrightness: "Brillo de Imagen",
+    cameraContrast: "Contraste",
+    cameraSaturation: "Saturación",
+    cameraEffect: "Efecto",
+    cameraMirror: "Espejo",
+    cameraFlip: "Voltear",
+
+    cameraEffectNormal: "Normal",
+    cameraEffectNegative: "Negativo",
+    cameraEffectGrayscale: "Escala de Grises",
+    cameraEffectRedTint: "Tinte Rojo",
+    cameraEffectGreenTint: "Tinte Verde",
+    cameraEffectBlueTint: "Tinte Azul",
+    cameraEffectSepia: "Sepia",
   },
 };
