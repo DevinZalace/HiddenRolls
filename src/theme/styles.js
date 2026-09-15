@@ -241,32 +241,6 @@ cameraFrame: {
   backgroundColor: "#000",
 },
 
-videoPlaceholderTitle: {
-  color: "white",
-  fontFamily: "Cinzel_700Bold",
-  fontSize: 22,
-  marginBottom: 8,
-},
-
-videoPlaceholderBody: {
-  color: "rgba(255,255,255,0.75)",
-  fontFamily: "Inter_400Regular",
-  fontSize: 14,
-  textAlign: "center",
-  lineHeight: 20,
-},
-
-controlsBar: {
-  flexDirection: "row",
-  gap: 10,
-  padding: 12,
-  margin: 12,
-  borderRadius: 18,
-  backgroundColor: "rgba(0,0,0,0.55)",
-  borderWidth: 1,
-  borderColor: "rgba(255,255,255,0.12)",
-},
-
 controlBtn: {
   flex: 1,
   paddingVertical: 30,
@@ -279,10 +253,6 @@ controlBtn: {
   minHeight: 48,
 },
 
-controlBtnOn: {
-  backgroundColor: "rgba(255,255,255,0.20)",
-  borderColor: "rgba(255,255,255,0.35)",
-},
 
 controlBtnText: {
   color: "white",
@@ -389,35 +359,6 @@ streamRetryBtn: {
 controlBtnDisabled: {
   opacity: 0.55,
 },
-lightSliderPanel: {
-  paddingHorizontal: 22,
-  paddingTop: 12,
-  paddingBottom: 8,
-  backgroundColor: "#171717",
-},
-
-lightSliderHeader: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-},
-
-lightSliderLabel: {
-  color: "#ffffff",
-  fontFamily: "Inter_400Regular",
-  fontSize: 15,
-},
-
-lightSliderValue: {
-  color: "#00e426",
-  fontFamily: "Inter_400Regular",
-  fontSize: 15,
-},
-
-lightSlider: {
-  width: "100%",
-  height: 38,
-},
 
 wifiNetworkRow: {
   flexDirection: "row",
@@ -521,4 +462,152 @@ liveHudBtnText: {
   textAlign: "center",
 },
 
+cameraSettingsPanel: {
+  position: "absolute",
+  right: 12,
+  bottom: 62,
+  width: 300,
+  padding: 16,
+  borderRadius: 16,
+  backgroundColor: "rgba(10,10,10,0.88)",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.20)",
+  zIndex: 30,
+},
+
+cameraSettingsHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 1,
+},
+
+cameraSettingsTitle: {
+  color: "#ffffff",
+  fontFamily: "Cinzel_700Bold",
+  fontSize: 17,
+},
+
+cameraSettingsClose: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 24,
+  paddingHorizontal: 6,
+},
+
+cameraSettingLabel: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 14,
+},
+
+cameraEffectSection: {
+  width: "100%",
+  marginTop: 4,
+},
+
+cameraEffectSelector: {
+  marginTop: 8,
+  paddingVertical: 9,
+  paddingHorizontal: 12,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.22)",
+  backgroundColor: "rgba(255,255,255,0.08)",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+cameraEffectSelectorText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 14,
+},
+
+cameraEffectArrow: {
+  color: "rgba(255,255,255,0.65)",
+  fontSize: 11,
+},
+
+cameraEffectMenu: {
+  marginTop: 6,
+  borderRadius: 10,
+  overflow: "hidden",
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.16)",
+  backgroundColor: "rgba(15,15,15,0.96)",
+},
+
+cameraEffectOption: {
+  paddingVertical: 4,
+  paddingHorizontal: 12,
+},
+
+cameraEffectOptionActive: {
+  backgroundColor: "rgba(255,255,255,0.14)",
+},
+
+cameraEffectOptionText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+},
+
+cameraSettingCompactRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  width: "100%",
+  minHeight: 28,
+  gap: 10,
+},
+
+cameraSettingCompactLabel: {
+  width: 120,
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+},
+
+cameraSettingCompactSlider: {
+  flex: 1,
+  height: 24,
+},
+
+cameraSettingCompactValue: {
+  width: 24,
+  color: "rgba(255,255,255,0.72)",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+  textAlign: "right",
+},
+
+cameraToggleRow: {
+  flexDirection: "row",
+  gap: 8,
+  marginTop: 5,
+},
+
+cameraToggleBtn: {
+  flex: 1,
+  paddingVertical: 3,
+  paddingHorizontal: 10,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "rgba(255,255,255,0.20)",
+  backgroundColor: "rgba(255,255,255,0.06)",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+cameraToggleBtnActive: {
+  backgroundColor: "rgba(255,255,255,0.16)",
+  borderColor: "rgba(255,255,255,0.40)",
+},
+
+cameraToggleText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+},
 });

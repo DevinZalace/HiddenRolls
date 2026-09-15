@@ -20,11 +20,22 @@ import { CAMERA_CONFIG, buildCameraStreamUrl } from "../../config/camera";
 import {
   checkCameraConnection,
   setCameraLightIntensity,
+  setCameraSetting,
 } from "../../services/cameraService";
 import { styles } from "../theme/styles";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as NavigationBar from "expo-navigation-bar";
 
+// Camera effect options for the ESP32-CAM device.
+const CAMERA_EFFECT_OPTIONS = [
+  { label: "Normal", value: 0 },
+  { label: "Negative", value: 1 },
+  { label: "Grayscale", value: 2 },
+  { label: "Red Tint", value: 3 },
+  { label: "Green Tint", value: 4 },
+  { label: "Blue Tint", value: 5 },
+  { label: "Sepia", value: 6 },
+];
 
 /**
  * LiveScreen Component
@@ -65,8 +76,22 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
   );
   // Restore this value when the light is turned on again.
 
+  const [cameraSettingsOpen, setCameraSettingsOpen] = useState(false);
+  const [cameraBrightness, setCameraBrightness] = useState(0);
+  const [cameraContrast, setCameraContrast] = useState(0);
+  const [cameraSaturation, setCameraSaturation] = useState(0);
+  const [cameraEffect, setCameraEffect] = useState(0);
+  const [effectMenuOpen, setEffectMenuOpen] = useState(false);
+  const [cameraMirror, setCameraMirror] = useState(false);
+  const [cameraFlip, setCameraFlip] = useState(false);
+
   const isAdjustingLight = useRef(false);
   // Avoid overwriting the slider while a drag is in progress.
+
+  // Track whether the user is actively adjusting camera settings.
+  const isAdjustingBrightness = useRef(false);
+  const isAdjustingContrast = useRef(false);
+  const isAdjustingSaturation = useRef(false);
 
   /**
    * Toggles camera light on/off.
@@ -119,6 +144,159 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
     );
   } finally {
     setLightIsChanging(false);
+  }
+}
+
+// Updates camera brightness setting on the ESP32 device.
+async function updateCameraBrightness(value) {
+  const requestedValue = Math.round(value);
+
+  try {
+    const result = await setCameraSetting(
+      "brightness",
+      requestedValue,
+      {
+        host: cameraHost,
+      }
+    );
+
+    if (!result.success) {
+      console.error(
+        "Failed to update camera brightness:",
+        result.reason
+      );
+
+      return;
+    }
+
+    setCameraBrightness(result.value);
+  } finally {
+    isAdjustingBrightness.current = false;
+  }
+}
+
+// Updates camera contrast setting on the ESP32 device.
+async function updateCameraContrast(value) {
+  const requestedValue = Math.round(value);
+
+  try {
+    const result = await setCameraSetting(
+      "contrast",
+      requestedValue,
+      {
+        host: cameraHost,
+      }
+    );
+
+    if (!result.success) {
+      console.error(
+        "Failed to update camera contrast:",
+        result.reason
+      );
+
+      return;
+    }
+
+    setCameraContrast(result.value);
+  } finally {
+    isAdjustingContrast.current = false;
+  }
+}
+
+// Updates camera saturation setting on the ESP32 device.
+async function updateCameraSaturation(value) {
+  const requestedValue = Math.round(value);
+
+  try {
+    const result = await setCameraSetting(
+      "saturation",
+      requestedValue,
+      {
+        host: cameraHost,
+      }
+    );
+
+    if (!result.success) {
+      console.error(
+        "Failed to update camera saturation:",
+        result.reason
+      );
+
+      return;
+    }
+
+    setCameraSaturation(result.value);
+  } finally {
+    isAdjustingSaturation.current = false;
+  }
+}
+
+// Updates camera special effect setting on the ESP32 device.
+async function updateCameraEffect(value) {
+  setCameraEffect(value);
+  setEffectMenuOpen(false);
+
+  const result = await setCameraSetting(
+    "special_effect",
+    value,
+    {
+      host: cameraHost,
+    }
+  );
+
+  if (!result.success) {
+    console.error(
+      "Failed to update camera effect:",
+      result.reason
+    );
+  }
+}
+
+// Updates camera horizontal mirror setting on the ESP32 device.
+async function updateCameraMirror() {
+  const nextValue = !cameraMirror;
+
+  setCameraMirror(nextValue);
+
+  const result = await setCameraSetting(
+    "hmirror",
+    nextValue ? 1 : 0,
+    {
+      host: cameraHost,
+    }
+  );
+
+  if (!result.success) {
+    setCameraMirror(!nextValue);
+
+    console.error(
+      "Failed to update camera mirror:",
+      result.reason
+    );
+  }
+}
+
+// Updates camera vertical flip setting on the ESP32 device.
+async function updateCameraFlip() {
+  const nextValue = !cameraFlip;
+
+  setCameraFlip(nextValue);
+
+  const result = await setCameraSetting(
+    "vflip",
+    nextValue ? 1 : 0,
+    {
+      host: cameraHost,
+    }
+  );
+
+  if (!result.success) {
+    setCameraFlip(!nextValue);
+
+    console.error(
+      "Failed to update camera flip:",
+      result.reason
+    );
   }
 }
 
@@ -217,7 +395,64 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
     if (result.connected) {
   consecutiveFailures = 0;
 
-  const reportedLightIntensity = Number(
+const reportedCameraBrightness = Number(
+    result.cameraStatus?.brightness
+  );
+
+if (
+  Number.isFinite(reportedCameraBrightness) &&
+  !isAdjustingBrightness.current
+) {
+  setCameraBrightness(reportedCameraBrightness);
+}
+
+const reportedCameraContrast = Number(
+  result.cameraStatus?.contrast
+);
+
+if (
+  Number.isFinite(reportedCameraContrast) &&
+  !isAdjustingContrast.current
+) {
+  setCameraContrast(reportedCameraContrast);
+}
+
+const reportedCameraSaturation = Number(
+  result.cameraStatus?.saturation
+);
+
+if (
+  Number.isFinite(reportedCameraSaturation) &&
+  !isAdjustingSaturation.current
+) {
+  setCameraSaturation(reportedCameraSaturation);
+}
+
+const reportedCameraEffect = Number(
+  result.cameraStatus?.special_effect
+);
+
+if (Number.isFinite(reportedCameraEffect)) {
+  setCameraEffect(reportedCameraEffect);
+}
+
+const reportedCameraMirror = Number(
+  result.cameraStatus?.hmirror
+);
+
+if (Number.isFinite(reportedCameraMirror)) {
+  setCameraMirror(reportedCameraMirror === 1);
+}
+
+const reportedCameraFlip = Number(
+  result.cameraStatus?.vflip
+);
+
+if (Number.isFinite(reportedCameraFlip)) {
+  setCameraFlip(reportedCameraFlip === 1);
+}
+
+const reportedLightIntensity = Number(
   result.cameraStatus?.led_intensity
 );
 
@@ -354,6 +589,174 @@ const esp32StreamUrl =
           </View>
         )}
 
+        {cameraSettingsOpen && (
+          <View style={styles.cameraSettingsPanel}>
+            <View style={styles.cameraSettingsHeader}>
+              <Text style={styles.cameraSettingsTitle}>
+                Camera Settings
+              </Text>
+
+              <Pressable
+                onPress={() => setCameraSettingsOpen(false)}
+              >
+                <Text style={styles.cameraSettingsClose}>
+                  ×
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.cameraSettingCompactRow}>
+              <Text style={styles.cameraSettingCompactLabel}>
+                Image Brightness
+              </Text>
+
+              <Slider
+                style={styles.cameraSettingCompactSlider}
+                minimumValue={-2}
+                maximumValue={2}
+                step={1}
+                value={cameraBrightness}
+                onSlidingStart={() => {
+                  isAdjustingBrightness.current = true;
+                }}
+                onValueChange={setCameraBrightness}
+                onSlidingComplete={updateCameraBrightness}
+                minimumTrackTintColor="#ffffff"
+                maximumTrackTintColor="rgba(255,255,255,0.25)"
+                thumbTintColor="#ffffff"
+              />
+
+              <Text style={styles.cameraSettingCompactValue}>
+                {cameraBrightness}
+              </Text>
+            </View>
+
+            <View style={styles.cameraSettingCompactRow}>
+              <Text style={styles.cameraSettingCompactLabel}>
+                Contrast
+              </Text>
+
+              <Slider
+                style={styles.cameraSettingCompactSlider}
+                minimumValue={-2}
+                maximumValue={2}
+                step={1}
+                value={cameraContrast}
+                onSlidingStart={() => {
+                  isAdjustingContrast.current = true;
+                }}
+                onValueChange={setCameraContrast}
+                onSlidingComplete={updateCameraContrast}
+                minimumTrackTintColor="#ffffff"
+                maximumTrackTintColor="rgba(255,255,255,0.25)"
+                thumbTintColor="#ffffff"
+              />
+
+              <Text style={styles.cameraSettingCompactValue}>
+                {cameraContrast}
+              </Text>
+            </View>
+
+            <View style={styles.cameraSettingCompactRow}>
+              <Text style={styles.cameraSettingCompactLabel}>
+                Saturation
+              </Text>
+
+              <Slider
+                style={styles.cameraSettingCompactSlider}
+                minimumValue={-2}
+                maximumValue={2}
+                step={1}
+                value={cameraSaturation}
+                onSlidingStart={() => {
+                  isAdjustingSaturation.current = true;
+                }}
+                onValueChange={setCameraSaturation}
+                onSlidingComplete={updateCameraSaturation}
+                minimumTrackTintColor="#ffffff"
+                maximumTrackTintColor="rgba(255,255,255,0.25)"
+                thumbTintColor="#ffffff"
+              />
+
+              <Text style={styles.cameraSettingCompactValue}>
+                {cameraSaturation}
+              </Text>
+            </View>
+
+            <View style={styles.cameraEffectSection}>
+              <Text style={styles.cameraSettingLabel}>
+                Effect
+              </Text>
+
+              <Pressable
+                style={styles.cameraEffectSelector}
+                onPress={() =>
+                  setEffectMenuOpen((current) => !current)
+                }
+              >
+                <Text style={styles.cameraEffectSelectorText}>
+                  {
+                    CAMERA_EFFECT_OPTIONS.find(
+                      (effect) => effect.value === cameraEffect
+                    )?.label ?? "Normal"
+                  }
+                </Text>
+
+                <Text style={styles.cameraEffectArrow}>
+                  {effectMenuOpen ? "▲" : "▼"}
+                </Text>
+              </Pressable>
+
+              {effectMenuOpen && (
+                <View style={styles.cameraEffectMenu}>
+                  {CAMERA_EFFECT_OPTIONS.map((effect) => (
+                    <Pressable
+                      key={effect.value}
+                      style={[
+                        styles.cameraEffectOption,
+                        cameraEffect === effect.value &&
+                          styles.cameraEffectOptionActive,
+                      ]}
+                      onPress={() =>
+                        updateCameraEffect(effect.value)
+                      }
+                    >
+                      <Text style={styles.cameraEffectOptionText}>
+                        {effect.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              <View style={styles.cameraToggleRow}>
+                <Pressable
+                  style={[
+                    styles.cameraToggleBtn,
+                    cameraMirror && styles.cameraToggleBtnActive,
+                  ]}
+                  onPress={updateCameraMirror}
+                >
+                  <Text style={styles.cameraToggleText}>
+                    Mirror: {cameraMirror ? "On" : "Off"}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.cameraToggleBtn,
+                    cameraFlip && styles.cameraToggleBtnActive,
+                  ]}
+                  onPress={updateCameraFlip}
+                >
+                  <Text style={styles.cameraToggleText}>
+                    Flip: {cameraFlip ? "On" : "Off"}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+
         <View style={styles.liveHud}>
         {lightOn && (
           <Slider
@@ -388,6 +791,17 @@ const esp32StreamUrl =
             {lightIsChanging
               ? t.lightUpdating
               : `${t.light}: ${lightOn ? t.on : t.off}`}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.liveHudBtn}
+          onPress={() =>
+            setCameraSettingsOpen((current) => !current)
+          }
+        >
+          <Text style={styles.liveHudBtnText}>
+            ⚙
           </Text>
         </Pressable>
 

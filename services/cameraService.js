@@ -142,6 +142,123 @@ export async function verifyHiddenRollsTray(
   }
 }
 
+const CAMERA_SETTING_RULES = {
+  brightness: {
+    min: -2,
+    max: 2,
+  },
+  contrast: {
+    min: -2,
+    max: 2,
+  },
+  saturation: {
+    min: -2,
+    max: 2,
+  },
+  special_effect: {
+    min: 0,
+    max: 6,
+  },
+  hmirror: {
+    min: 0,
+    max: 1,
+  },
+  vflip: {
+    min: 0,
+    max: 1,
+  },
+};
+
+/**
+ * Updates a supported image setting on the ESP32 camera sensor.
+ *
+ * Settings are validated before the request is sent so the app cannot
+ * accidentally send values outside the supported camera range.
+ */
+export async function setCameraSetting(
+  setting,
+  value,
+  {
+    host,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = {}
+) {
+  const rule = CAMERA_SETTING_RULES[setting];
+
+  if (!rule) {
+    return {
+      success: false,
+      reason: "unsupported-setting",
+    };
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return {
+      success: false,
+      reason: "invalid-value",
+    };
+  }
+
+  const normalizedValue = Math.min(
+    rule.max,
+    Math.max(
+      rule.min,
+      Math.round(numericValue)
+    )
+  );
+
+  const controller = new AbortController();
+
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const controlUrl = buildCameraControlUrl(
+      setting,
+      normalizedValue,
+      host
+    );
+
+    const response = await fetch(controlUrl, {
+      method: "GET",
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        reason: "http-error",
+        statusCode: response.status,
+      };
+    }
+
+    return {
+      success: true,
+      setting,
+      value: normalizedValue,
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      return {
+        success: false,
+        reason: "timeout",
+      };
+    }
+
+    return {
+      success: false,
+      reason: "network-error",
+      error,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 /**
  * Sets the HiddenRolls camera light to a specific intensity.
  *
