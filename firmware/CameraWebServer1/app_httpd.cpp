@@ -24,6 +24,7 @@
 #include "board_config.h"
 #include "tray_config.h"
 #include "WiFi.h"
+#include "camera_image_settings.h"
 
 // HTTP handlers and streaming logic for the camera firmware.
 // The control server exposes camera status, capture, lighting, and reset
@@ -333,6 +334,9 @@ static esp_err_t parse_get(httpd_req_t *req, char **obuf) {
   return ESP_FAIL;
 }
 
+// Startup applies the initial settings before starting this server.
+// A failed update and failed recovery make the hardware state uncertain.
+static bool cameraImageSettingsValid = true;
 static esp_err_t cmd_handler(httpd_req_t *req) {
   char *buf = NULL;
   char variable[32];
@@ -352,6 +356,77 @@ static esp_err_t cmd_handler(httpd_req_t *req) {
   log_i("%s = %d", variable, val);
   sensor_t *s = esp_camera_sensor_get();
   int res = 0;
+
+    if (s == nullptr) {
+    return httpd_resp_send_500(req);
+  }
+
+  const bool isImageSetting =
+    !strcmp(variable, "brightness") ||
+    !strcmp(variable, "contrast") ||
+    !strcmp(variable, "saturation") ||
+    !strcmp(variable, "special_effect");
+
+  if (s->id.PID == OV2640_PID && isImageSetting) {
+    const bool isEffect =
+      !strcmp(variable, "special_effect");
+
+    const int minimumValue = isEffect ? 0 : -2;
+    const int maximumValue = isEffect ? 6 : 2;
+
+    if (val < minimumValue || val > maximumValue) {
+      return httpd_resp_send_err(
+        req,
+        HTTPD_400_BAD_REQUEST,
+        "Image setting value is out of range."
+      );
+    }
+
+    // Begin with the last successfully applied combination.
+    CameraImageSettings previous;
+    previous.brightness = s->status.brightness;
+    previous.contrast = s->status.contrast;
+    previous.saturation = s->status.saturation;
+    previous.specialEffect = s->status.special_effect;
+
+    // Change only the setting requested by this command.
+    CameraImageSettings requested = previous;
+
+    if (!strcmp(variable, "brightness")) {
+      requested.brightness = val;
+    } else if (!strcmp(variable, "contrast")) {
+      requested.contrast = val;
+    } else if (!strcmp(variable, "saturation")) {
+      requested.saturation = val;
+    } else {
+      requested.specialEffect = val;
+    }
+
+    if (applyCameraImageSettings(s, requested) != 0) {
+      // Some writes may have succeeded. Try to restore
+      // the last confirmed combination.
+      cameraImageSettingsValid =
+        applyCameraImageSettings(s, previous) == 0;
+
+      if (!cameraImageSettingsValid) {
+        log_e(
+          "Image settings update and recovery both failed."
+        );
+      }
+
+      return httpd_resp_send_500(req);
+    }
+
+    cameraImageSettingsValid = true;
+
+    httpd_resp_set_hdr(
+      req,
+      "Access-Control-Allow-Origin",
+      "*"
+    );
+
+    return httpd_resp_send(req, NULL, 0);
+  }
 
   if (!strcmp(variable, "framesize")) {
     if (s->pixformat == PIXFORMAT_JPEG) {
@@ -433,6 +508,9 @@ static esp_err_t status_handler(httpd_req_t *req) {
   static char json_response[1024];
 
   sensor_t *s = esp_camera_sensor_get();
+    if (s == nullptr || !cameraImageSettingsValid) {
+    return httpd_resp_send_500(req);
+  }
   char *p = json_response;
   char *end = json_response + sizeof(json_response);
   *p++ = '{';

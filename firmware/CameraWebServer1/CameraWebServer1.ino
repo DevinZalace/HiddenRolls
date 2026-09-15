@@ -6,6 +6,7 @@
 #include "WiFiProv.h"
 #include "esp_heap_caps.h"
 #include <esp_wifi.h>
+#include "camera_image_settings.h"
 
 // ===========================
 // Select camera model in board_config.h
@@ -308,6 +309,19 @@ if (savedCredentialsExist) {
   if (config.pixel_format == PIXFORMAT_JPEG) {
     s->set_framesize(s, FRAMESIZE_HVGA);
     s->set_bpc(s, 1);
+  }
+    // Establish a consistent starting combination of image settings.
+  if (s->id.PID == OV2640_PID) {
+    const CameraImageSettings defaultImageSettings{};
+
+    if (
+      applyCameraImageSettings(s, defaultImageSettings) != 0
+    ) {
+      Serial.println(
+        "ERROR: Could not apply default camera image settings."
+      );
+      return;
+    }
   }
 
 #if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
