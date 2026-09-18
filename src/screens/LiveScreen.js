@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Alert, Platform, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Alert, Platform, Pressable, Text, useWindowDimensions, View, ScrollView } from "react-native";
 import Slider from "@react-native-community/slider";
 import { WebView } from "react-native-webview";
 import { CAMERA_CONFIG, buildCameraStreamUrl } from "../../config/camera";
@@ -37,6 +37,7 @@ const CAMERA_EFFECT_OPTIONS = [
   { labelKey: "cameraEffectSepia", value: 6 },
 ];
 const CAMERA_ASPECT_RATIO = 3 / 2;
+const CAMERA_SETTINGS_HUD_CLEARANCE = 50;
 
 /**
  * LiveScreen Component
@@ -74,6 +75,12 @@ export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
     cameraFrameWidth - liveEdgeInset * 2
   );
 
+  const cameraSettingsMaxHeight = Math.max(
+    0,
+    cameraFrameHeight -
+      CAMERA_SETTINGS_HUD_CLEARANCE -
+      liveEdgeInset * 2
+  );
   // ===== Stream State =====
   const [streamError, setStreamError] = useState(false);
   // Set after consecutive health checks fail.
@@ -627,8 +634,9 @@ const esp32StreamUrl =
               styles.cameraSettingsPanel,
               {
                 right: liveEdgeInset,
-                bottom: liveEdgeInset + 50,
+                bottom: liveEdgeInset + CAMERA_SETTINGS_HUD_CLEARANCE,
                 width: cameraSettingsWidth,
+                maxHeight: cameraSettingsMaxHeight,
               },
             ]}
           >
@@ -645,7 +653,11 @@ const esp32StreamUrl =
                 </Text>
               </Pressable>
             </View>
-
+            <ScrollView
+              style={{ flexShrink: 1 }}
+              showsVerticalScrollIndicator
+              nestedScrollEnabled
+            >
             <View style={styles.cameraSettingCompactRow}>
               <Text style={styles.cameraSettingCompactLabel}>
                 {t.imageBrightness}
@@ -797,6 +809,7 @@ const esp32StreamUrl =
                 </Pressable>
               </View>
             </View>
+            </ScrollView>
           </View>
         )}
 
