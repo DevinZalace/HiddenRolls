@@ -9,7 +9,7 @@
 
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { styles } from "../theme/styles";
 import {
   getBluetoothStatus,
@@ -28,6 +28,12 @@ import {
 export function SetupScreen({ navigation, t, language, setLanguage }) {
   // Prevent duplicate readiness checks while permissions are being evaluated.
   const [checkingBluetooth, setCheckingBluetooth] = useState(false);
+  const { width } = useWindowDimensions();
+
+  const setupContentWidth = Math.min(
+    width - 48,
+    720
+  );
 
   /**
   * Verifies Bluetooth readiness before opening the QR scanning screen.
@@ -93,6 +99,17 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
   }
   return (
     <View style={styles.setupRoot}>
+      <ScrollView
+        style={styles.setupPageScroll}
+        contentContainerStyle={styles.setupPageScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.setupContent,
+            { width: setupContentWidth },
+          ]}
+        >
       <View style={styles.setupTop}>
         <Text style={styles.setupTitle}>{t.setupTitle}</Text>
 
@@ -138,6 +155,8 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
       </View>
 
       <StatusBar style="light" />
+    </View>
+    </ScrollView>
     </View>
   );
 }

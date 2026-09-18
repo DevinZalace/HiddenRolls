@@ -13,6 +13,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  useWindowDimensions,
   Text,
   View,
 } from "react-native";
@@ -72,6 +73,13 @@ export function LandingScreen({
   setPairedTray,
 }) {
 
+
+  const { width } = useWindowDimensions();
+
+  const landingContentWidth = Math.min(
+    width - 48,
+    720
+  );
   const existingTrayAttemptRef = useRef(0);
   const existingTrayAbortRef = useRef(null);
   const [openingTray, setOpeningTray] = useState(false);
@@ -337,6 +345,12 @@ export function LandingScreen({
       resizeMode="cover"
     >
       <View style={styles.overlay}>
+        <View
+          style={[
+            styles.landingContent,
+            { width: landingContentWidth },
+          ]}
+        >
         {/* Title */}
         <Text style={styles.landingTitle}>{t.landingTitle}</Text>
 
@@ -564,6 +578,7 @@ export function LandingScreen({
             )}
           </View>
         )}
+      </View>
       </View>
 
       <StatusBar style="light" />

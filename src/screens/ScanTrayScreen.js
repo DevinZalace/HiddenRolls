@@ -6,6 +6,7 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  useWindowDimensions,
 } from "react-native";
 import {
   CameraView,
@@ -35,8 +36,15 @@ import { usePreventRemove } from "@react-navigation/native";
  *
  * Flow: Camera permission -> Scan QR -> verify Wi-Fi -> BLE setup -> Wi-Fi provisioning
  */
+
 export function ScanTrayScreen({ navigation, t, pendingTray, setPendingTray, setPairedTray }) {
   // Identifies the current setup attempt.
+  const { width } = useWindowDimensions();
+
+  const scanContentWidth = Math.min(
+    width - 48,
+    720
+  );
   const setupAttemptRef = useRef(0);
   const savingPairingRef = useRef(false);
   const qrScanRef = useRef(false);
@@ -882,7 +890,13 @@ function handleResetTrayWifi() {
   if (stoppingSetup || cleanupError) {
     return (
       <View style={styles.setupRoot}>
-        <View style={styles.helpCard}>
+        <View
+          style={[
+            styles.scanStateContent,
+            { width: scanContentWidth },
+          ]}
+        >
+          <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>
             {cleanupError
               ? t.setupCleanupErrorTitle
@@ -910,6 +924,7 @@ function handleResetTrayWifi() {
           ) : null}
         </View>
       </View>
+    </View>
     );
   }
 
@@ -917,9 +932,16 @@ function handleResetTrayWifi() {
   if (!permission) {
     return (
       <View style={styles.setupRoot}>
-        <Text style={styles.helpBody}>
-          {t.cameraCheckingPermission}
-        </Text>
+        <View
+          style={[
+            styles.scanStateContent,
+            { width: scanContentWidth },
+          ]}
+        >
+          <Text style={styles.helpBody}>
+            {t.cameraCheckingPermission}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -960,7 +982,13 @@ function handleResetTrayWifi() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={true}
       >
-        <View style={styles.helpCard}>
+        <View
+          style={[
+            styles.scanProvisioningContent,
+            { width: scanContentWidth },
+          ]}
+        >
+          <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>
             {t.trayFoundTitle}
           </Text>
@@ -1247,6 +1275,7 @@ function handleResetTrayWifi() {
             </Text>
           </Pressable>
         </View>
+        </View>
       </ScrollView>
     </View>
     );
@@ -1255,21 +1284,23 @@ function handleResetTrayWifi() {
   // Initial state: Show camera for QR code scanning
   return (
     <View style={styles.setupRoot}>
-      <Text style={styles.setupTitle}>
-        {t.scanTitle}
-      </Text>
+      <View
+        style={[
+          styles.scanContent,
+          { width: scanContentWidth },
+        ]}
+      >
+        <Text style={styles.setupTitle}>
+          {t.scanTitle}
+        </Text>
 
-      <Text style={styles.helpBody}>
-        {t.scanInstructions}
-      </Text>
+        <Text style={styles.helpBody}>
+          {t.scanInstructions}
+        </Text>
 
       {/* Camera view for QR code scanning - disabled after first scan */}
       <CameraView
-        style={{
-          width: "100%",
-          flex: 1,
-          marginVertical: 20,
-        }}
+        style={styles.scanCamera}
         facing="back"
         barcodeScannerSettings={{
           barcodeTypes: ["qr"],
@@ -1317,5 +1348,6 @@ function handleResetTrayWifi() {
         </Text>
       </Pressable>
     </View>
+  </View>
   );
 }
