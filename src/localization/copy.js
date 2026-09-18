@@ -389,13 +389,13 @@ export const copy = {
 
     3. Wi-Fi Provisioning
 
-    Hidden Rolls hardware may use Bluetooth Low Energy, or BLE, during initial setup so that the application can configure the hardware to connect to your Wi-Fi network.
+    Hidden Rolls hardware uses Bluetooth Low Energy, or BLE, during initial setup so that the application can configure the hardware to connect to your Wi-Fi network.
 
     During this process, the application may temporarily process your selected Wi-Fi network name and Wi-Fi credentials.
 
     Those credentials are transmitted directly from your mobile device to your Hidden Rolls hardware as part of the provisioning process. D&T does not receive or store your Wi-Fi password on its servers.
 
-    Your Hidden Rolls hardware may store Wi-Fi credentials locally so that it can reconnect to your network after being powered off or restarted.
+    Your Hidden Rolls hardware stores Wi-Fi credentials locally so that it can reconnect to your network after being powered off or restarted.
 
     4. QR Code and Camera Access
 
@@ -957,13 +957,13 @@ export const copy = {
 
     3. Configuración de Wi-Fi
 
-    El hardware Hidden Rolls puede utilizar Bluetooth Low Energy, o BLE, durante la configuración inicial para que la aplicación pueda configurar el hardware y conectarlo a su red Wi-Fi.
+    El hardware Hidden Rolls utiliza Bluetooth Low Energy, o BLE, durante la configuración inicial para que la aplicación pueda configurar el hardware y conectarlo a su red Wi-Fi.
 
-    Durante este proceso, la aplicación puede procesar temporalmente el nombre de la red Wi-Fi seleccionada y sus credenciales de Wi-Fi.
+    Durante este proceso, la aplicación procesa temporalmente el nombre de la red Wi-Fi seleccionada y sus credenciales de Wi-Fi.
 
     Estas credenciales se transmiten directamente desde su dispositivo móvil al hardware Hidden Rolls como parte del proceso de configuración. D&T no recibe ni almacena su contraseña de Wi-Fi en sus servidores.
 
-    El hardware Hidden Rolls puede almacenar localmente las credenciales de Wi-Fi para poder volver a conectarse a su red después de apagarse o reiniciarse.
+    El hardware Hidden Rolls almacena localmente las credenciales de Wi-Fi para poder volver a conectarse para poder volver a conectarse a su red después de apagarse o reiniciarse.
 
     4. Código QR y acceso a la cámara
 
@@ -1001,7 +1001,7 @@ export const copy = {
 
     7. Información almacenada en su dispositivo
 
-    La aplicación Hidden Rolls puede almacenar localmente en su dispositivo móvil preferencias de la aplicación e información de configuración del dispositivo.
+    La aplicación Hidden Rolls almacena localmente determinadas preferencias de la aplicación e información de configuración del dispositivo.
 
     Esto puede incluir configuraciones necesarias para facilitar el uso de la aplicación o volver a conectarse a hardware Hidden Rolls previamente configurado.
 

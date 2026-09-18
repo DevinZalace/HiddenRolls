@@ -580,7 +580,15 @@ export function LandingScreen({
         )}
       </View>
       </View>
-
+        {/* ===== Settings Cog ===== */}
+        <Pressable
+          style={styles.setupSettingsBtn}
+          onPress={() => navigation.navigate("Settings")}
+        >
+          <Text style={styles.setupSettingsBtnText}>
+            ⚙
+          </Text>
+        </Pressable>
       <StatusBar style="light" />
     </ImageBackground>
   );
