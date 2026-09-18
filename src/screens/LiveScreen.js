@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Alert, Platform, Pressable, Text, View } from "react-native";
+import { Alert, Platform, Pressable, Text, useWindowDimensions, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { WebView } from "react-native-webview";
 import { CAMERA_CONFIG, buildCameraStreamUrl } from "../../config/camera";
@@ -36,6 +36,7 @@ const CAMERA_EFFECT_OPTIONS = [
   { labelKey: "cameraEffectBlueTint", value: 5 },
   { labelKey: "cameraEffectSepia", value: 6 },
 ];
+const CAMERA_ASPECT_RATIO = 3 / 2;
 
 /**
  * LiveScreen Component
@@ -48,7 +49,30 @@ const CAMERA_EFFECT_OPTIONS = [
  * - pairedTray: Object containing information about the paired tray
  */
 export function LiveScreen({ navigation, t, lightOn, setLightOn, pairedTray }) {
+
   const cameraHost = pairedTray?.hostname;
+  const {
+    width: screenWidth,
+    height: screenHeight,
+  } = useWindowDimensions();
+
+  const cameraFrameWidth = Math.min(
+    screenWidth,
+    screenHeight * CAMERA_ASPECT_RATIO
+  );
+
+  const cameraFrameHeight =
+    cameraFrameWidth / CAMERA_ASPECT_RATIO;
+
+  const liveEdgeInset = Math.max(
+    8,
+    Math.min(16, cameraFrameWidth * 0.02)
+  );
+
+  const cameraSettingsWidth = Math.min(
+    300,
+    cameraFrameWidth - liveEdgeInset * 2
+  );
 
   // ===== Stream State =====
   const [streamError, setStreamError] = useState(false);
@@ -549,7 +573,15 @@ const esp32StreamUrl =
       <StatusBar hidden />
 
       <View style={styles.videoArea}>
-        <View style={styles.cameraFrame}>
+        <View
+          style={[
+            styles.cameraFrame,
+            {
+              width: cameraFrameWidth,
+              height: cameraFrameHeight,
+            },
+          ]}
+        >
           <WebView
           key={streamReloadKey}
           source={{ uri: esp32StreamUrl }}
@@ -590,7 +622,16 @@ const esp32StreamUrl =
         )}
 
         {cameraSettingsOpen && (
-          <View style={styles.cameraSettingsPanel}>
+          <View
+            style={[
+              styles.cameraSettingsPanel,
+              {
+                right: liveEdgeInset,
+                bottom: liveEdgeInset + 50,
+                width: cameraSettingsWidth,
+              },
+            ]}
+          >
             <View style={styles.cameraSettingsHeader}>
               <Text style={styles.cameraSettingsTitle}>
                 {t.cameraSettings}
@@ -759,7 +800,16 @@ const esp32StreamUrl =
           </View>
         )}
 
-        <View style={styles.liveHud}>
+        <View
+          style={[
+            styles.liveHud,
+            {
+              left: liveEdgeInset,
+              right: liveEdgeInset,
+              bottom: liveEdgeInset,
+            },
+          ]}
+>
         {lightOn && (
           <Slider
             style={styles.liveBrightnessSlider}

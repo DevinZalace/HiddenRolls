@@ -136,6 +136,14 @@ export const copy = {
     language: "Language",
     appSettings: "App",
     languageDescription: "Choose the language used throughout Hidden Rolls.",
+    about: "About",
+    termsOfUse: "Terms of Use",
+    privacyPolicy: "Privacy Policy",
+    support: "Support",
+    privacyPolicyText:
+    "Hidden Rolls is designed to operate primarily on your local network. Camera video from your Hidden Rolls tray is viewed locally through the app and is not uploaded to D&T Manufacturing servers.\n\nThe app may store preferences and paired tray information on your device to support normal operation.\n\nAdditional details about data collection, permissions, and device information will be provided in the final Privacy Policy before public release.",
+    supportText:
+    "Need help with Hidden Rolls?\n\nContact D&T Manufacturing at dntmfc@gmail.com or visit hidden-rolls.com.",
 
     // Tray discovery and connection
     trayFoundTitle: "Tray Found",
@@ -335,6 +343,14 @@ export const copy = {
     language: "Idioma",
     appSettings: "Aplicación",
     languageDescription: "Elige el idioma utilizado en Hidden Rolls.",
+    about: "Acerca de",
+    termsOfUse: "Términos de Uso",
+    privacyPolicy: "Política de Privacidad",
+    support: "Soporte",
+    privacyPolicyText:
+    "Hidden Rolls está diseñado para funcionar principalmente en tu red local. El video de la cámara de tu bandeja Hidden Rolls se visualiza localmente mediante la aplicación y no se carga a los servidores de D&T Manufacturing.\n\nLa aplicación puede guardar preferencias e información de bandejas vinculadas en tu dispositivo para permitir su funcionamiento normal.\n\nSe proporcionarán detalles adicionales sobre recopilación de datos, permisos e información del dispositivo en la Política de Privacidad final antes del lanzamiento público.",
+    supportText:
+    "¿Necesitas ayuda con Hidden Rolls?\n\nContacta a D&T Manufacturing en dntmfc@gmail.com o visita hidden-rolls.com.",
 
     // Tray discovery and connection
     trayFoundTitle: "Bandeja encontrada",

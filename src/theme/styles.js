@@ -51,6 +51,13 @@ export const styles = StyleSheet.create({
   padding: 24,
   gap: 18,
 },
+
+landingContent: {
+  alignSelf: "center",
+  alignItems: "center",
+  width: "100%",
+},
+
 landingTitle: {
   fontSize: 40,
   color: "white",
@@ -87,10 +94,6 @@ landingActions: {
 setupRoot: {
   flex: 1,
   backgroundColor: "#0b0b0b",
-  alignItems: "center",
-  justifyContent: "space-between",
-  paddingVertical: 36,
-  paddingHorizontal: 24,
 },
 setupTitle: {
   color: "white",
@@ -109,6 +112,36 @@ setupBottom: {
   alignItems: "center",
   paddingBottom: 28,
   paddingTop: 6,
+},
+
+setupPageScroll: {
+  flex: 1,
+  width: "100%",
+},
+
+setupPageScrollContent: {
+  flexGrow: 1,
+  alignItems: "center",
+  paddingVertical: 36,
+  paddingHorizontal: 24,
+},
+
+setupContent: {
+  flex: 1,
+  alignSelf: "center",
+  justifyContent: "space-between",
+},
+
+scanProvisioningContent: {
+  alignSelf: "center",
+  paddingVertical: 36,
+},
+
+scanStateContent: {
+  flex: 1,
+  alignSelf: "center",
+  justifyContent: "center",
+  paddingVertical: 36,
 },
 
 helpCard: {
@@ -191,9 +224,6 @@ cameraStream: {
 },
 
 cameraFrame: {
-  height: "100%",
-  aspectRatio: 3 / 2,
-  maxWidth: "100%",
   position: "relative",
   overflow: "hidden",
 
@@ -285,6 +315,15 @@ modalBtnText: {
   fontFamily: "Inter_400Regular",
   fontSize: 14,
 },
+
+modalLinkText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 14,
+  textDecorationLine: "underline",
+  marginBottom: 12,
+},
+
 streamErrorOverlay: {
   ...StyleSheet.absoluteFillObject,
   alignItems: "center",
@@ -384,9 +423,6 @@ setupScrollContent: {
 },
 liveHud: {
   position: "absolute",
-  left: 12,
-  right: 12,
-  bottom: 12,
   flexDirection: "row",
   alignItems: "center",
   justifyContent: "flex-end",
@@ -425,9 +461,6 @@ liveHudBtnText: {
 
 cameraSettingsPanel: {
   position: "absolute",
-  right: 12,
-  bottom: 62,
-  width: 300,
   padding: 16,
   borderRadius: 16,
   backgroundColor: "rgba(10,10,10,0.88)",
@@ -572,11 +605,24 @@ cameraToggleText: {
   fontSize: 13,
 },
 
+scanContent: {
+  flex: 1,
+  alignSelf: "center",
+  alignItems: "stretch",
+  paddingVertical: 36,
+},
+
+scanCamera: {
+  width: "100%",
+  flex: 1,
+  marginVertical: 20,
+  borderRadius: 16,
+  overflow: "hidden",
+},
+
 settingsRoot: {
   flex: 1,
   backgroundColor: "#0b0b0b",
-  paddingHorizontal: 24,
-  paddingVertical: 24,
 },
 
 settingsHeader: {
@@ -692,5 +738,51 @@ settingsLanguageBtnText: {
   color: "#ffffff",
   fontFamily: "Inter_400Regular",
   fontSize: 14,
+},
+
+settingsRow: {
+  minHeight: 48,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+settingsRowText: {
+  color: "#ffffff",
+  fontFamily: "Inter_400Regular",
+  fontSize: 14,
+},
+
+settingsRowArrow: {
+  color: "rgba(255,255,255,0.55)",
+  fontFamily: "Inter_400Regular",
+  fontSize: 24,
+},
+
+settingsVersionText: {
+  color: "rgba(255,255,255,0.55)",
+  fontFamily: "Inter_400Regular",
+  fontSize: 13,
+},
+
+settingsDivider: {
+  height: 1,
+  backgroundColor: "rgba(255,255,255,0.08)",
+},
+
+settingsPageScroll: {
+  flex: 1,
+  width: "100%",
+},
+
+settingsPageScrollContent: {
+  flexGrow: 1,
+  alignItems: "center",
+  paddingVertical: 36,
+  paddingHorizontal: 24,
+},
+
+settingsContent: {
+  alignSelf: "center",
 },
 });
