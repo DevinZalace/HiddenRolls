@@ -142,7 +142,8 @@ export function ScanTrayScreen({ navigation, t, pendingTray, setPendingTray, set
   const [resetWifiError, setResetWifiError] =
     useState(null);
 
-    // Invalidate callbacks before aborting their network work.
+    // Invalidate callbacks before aborting network work so late responses from a
+    // previous QR attempt cannot update the current setup state.
   function invalidateSetupAttempt() {
     setupAttemptRef.current += 1;
     readinessAbortRef.current?.abort();
@@ -151,8 +152,10 @@ export function ScanTrayScreen({ navigation, t, pendingTray, setPendingTray, set
     verificationAbortRef.current = null;
   }
 
-  // Stops the current tray setup process, including BLE disconnection and cleanup.
-  // Returns a promise that resolves to true if cleanup succeeded, false otherwise.
+  // Stops the current tray setup process, including BLE disconnection and
+  // native-operation cleanup. The shared promise prevents competing callers
+  // from issuing duplicate cancellation requests.
+  // Returns true only when native cleanup succeeds.
   function stopSetup() {
   if (cleanupPromiseRef.current) {
     return cleanupPromiseRef.current;

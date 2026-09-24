@@ -9,7 +9,7 @@ export type ParsedTray = {
   security: 1;
 };
 
-/** Current Android Bluetooth capability and permission state. */
+/** Current Bluetooth capability and permission state on the host platform. */
 export type BluetoothStatus = {
   supported: boolean;
   enabled: boolean;
@@ -39,7 +39,7 @@ export type WifiProvisionResult = {
   provisioned: boolean;
 };
 
-/** Existing tray discovered through Android network service discovery. */
+/** Existing tray discovered through local-network service discovery. */
 export type ExistingTrayDiscoveryResult = {
   trayId: string;
   displayName: string;

@@ -159,7 +159,8 @@ if (savedCredentialsExist) {
           "Saved Wi-Fi network unavailable."
         );
 
-        // Recovery provisioning 
+        // The timeout path below clears the unusable credentials and restarts
+        // the tray so the provisioning service can be started cleanly.
         break;
       }
 
@@ -333,7 +334,7 @@ if (savedCredentialsExist) {
   s->set_vflip(s, 1);
 #endif
 
-// Setup LED FLash if LED pin is defined in camera_pins.h
+// Set up the LED flash when camera_pins.h defines an LED pin.
 #if defined(LED_GPIO_NUM)
   setupLedFlash();
 #endif

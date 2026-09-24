@@ -15,6 +15,9 @@
  * Paired tray:
  * Landing -> Live
  *
+ * Settings is reachable from the onboarding screens and does not change the
+ * tray setup flow.
+ *
  * The app uses React Navigation for screen management and supports
  * multi-language localization (English and Spanish).
  */
@@ -202,7 +205,7 @@ export default function App() {
     };
   }, []);
 
-  // Restore the last paired tray before rendering the main navigation.
+  // Restore the locally saved paired tray before rendering the main navigation.
   useEffect(() => {
     let active = true;
 
