@@ -975,7 +975,7 @@ function handleResetTrayWifi() {
   // QR scanned: Show provisioning flow (discovery -> connection -> Wi-Fi scan)
   if (pendingTray) {
   return (
-    <View style={styles.setupRoot}>
+    <View style={styles.scanRoot}>
       <ScrollView
         style={{ flex: 1, width: "100%" }}
         contentContainerStyle={styles.setupScrollContent}
@@ -1283,7 +1283,7 @@ function handleResetTrayWifi() {
 
   // Initial state: Show camera for QR code scanning
   return (
-    <View style={styles.setupRoot}>
+    <View style={styles.scanRoot}>
       <View
         style={[
           styles.scanContent,

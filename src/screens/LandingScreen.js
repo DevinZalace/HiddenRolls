@@ -74,12 +74,22 @@ export function LandingScreen({
 }) {
 
 
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 600;
+
+  const horizontalPadding = isTablet ? 32 : 24;
 
   const landingContentWidth = Math.min(
-    width - 48,
+    width - horizontalPadding * 2,
     720
   );
+
+  const landingBackground = isLandscape
+    ? require("../../assets/AdobeStock_2180823407.png")
+    : require("../../assets/AdobeStock_218082340712.png");
+
   const existingTrayAttemptRef = useRef(0);
   const existingTrayAbortRef = useRef(null);
   const [openingTray, setOpeningTray] = useState(false);
@@ -340,10 +350,14 @@ export function LandingScreen({
 
   return (
     <ImageBackground
-      source={require("../../assets/Open.png")}
-      style={styles.background}
-      resizeMode="cover"
-    >
+          source={landingBackground}
+          style={styles.background}
+          resizeMode="cover"
+        >
+          <View
+            pointerEvents="none"
+            style={styles.BackgroundOverlay}
+          />
       <View style={styles.overlay}>
         <View
           style={[

@@ -26,7 +26,7 @@ import { StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#325494",
   },
   introContainer: {
     flex: 1,
@@ -43,9 +43,10 @@ export const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+
   overlay: {
   flex: 1,
-  backgroundColor: "rgba(0,0,0,0.55)",
+  backgroundColor: "rgba(0,0,0,0.18)",
   alignItems: "center",
   justifyContent: "center",
   padding: 24,
@@ -63,6 +64,7 @@ landingTitle: {
   color: "white",
   fontFamily: "Cinzel_700Bold",
   textAlign: "center",
+  opacity: 1,
 },
 primaryBtn: {
   backgroundColor: "rgba(255,255,255,0.18)",
@@ -93,7 +95,7 @@ landingActions: {
 },
 setupRoot: {
   flex: 1,
-  backgroundColor: "#0b0b0b",
+  backgroundColor: "transparent",
 },
 setupTitle: {
   color: "white",
@@ -130,6 +132,35 @@ setupContent: {
   flex: 1,
   alignSelf: "center",
   justifyContent: "space-between",
+},
+
+BackgroundOverlay: {
+  ...StyleSheet.absoluteFillObject,
+  backgroundColor: "rgba(4, 8, 20, 0.35)",
+},
+
+setupScrollLandscape: {
+  paddingVertical: 12,
+},
+
+setupScrollTablet: {
+  paddingHorizontal: 32,
+},
+
+setupSectionLabel: {
+  alignSelf: "stretch",
+  color: "rgba(255,255,255,0.85)",
+  fontFamily: "Cinzel_700Bold",
+  fontSize: 13,
+  textTransform: "uppercase",
+  letterSpacing: 1.2,
+  marginTop: 28,
+  marginBottom: 8,
+},
+
+scanRoot: {
+  flex: 1,
+  backgroundColor: "#1f3355",
 },
 
 scanProvisioningContent: {
@@ -211,7 +242,7 @@ liveRoot: {
 
 videoArea: {
   flex: 1,
-  backgroundColor: "#000",
+  backgroundColor: "transparent",
   alignItems: "center",
   justifyContent: "center",
   overflow: "hidden",
@@ -223,12 +254,21 @@ cameraStream: {
   backgroundColor: "#000",
 },
 
+cameraStreamZoom: {
+  transform: [{ scale: 1.12 }],
+},
+
 cameraFrame: {
   position: "relative",
   overflow: "hidden",
 
-  borderWidth: 2,
-  borderColor: "rgba(255,255,255,0.35)",
+  borderWidth: 3,
+  borderTopColor: "#668FFF",
+  borderBottomColor: "#668FFF",
+  borderLeftColor: "#25CFFF",
+  borderRightColor: "#A65BFF",
+
+  borderRadius: 10,
   backgroundColor: "#000",
 },
 
@@ -622,7 +662,7 @@ scanCamera: {
 
 settingsRoot: {
   flex: 1,
-  backgroundColor: "#0b0b0b",
+  backgroundColor: "Transparent",
 },
 
 settingsHeader: {
@@ -647,6 +687,19 @@ settingsCard: {
   borderColor: "rgba(255,255,255,0.12)",
   backgroundColor: "rgba(255,255,255,0.05)",
 },
+
+settingsScrollLandscape: {
+  paddingVertical: 12,
+},
+
+settingsScrollTablet: {
+  paddingHorizontal: 32,
+},
+
+settingsHeaderLandscape: {
+  marginTop: 8,
+},
+
 
 settingsBackBtn: {
   marginTop: 32,

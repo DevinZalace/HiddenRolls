@@ -6,6 +6,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  ImageBackground,
 } from "react-native";
 import { useState } from "react";
 import { styles } from "../theme/styles";
@@ -23,18 +24,42 @@ export function SettingsScreen({
 
   const [infoModal, setInfoModal] = useState(null);
 
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 600;
+
+  const horizontalPadding = isTablet ? 32 : 24;
 
   const settingsContentWidth = Math.min(
-    width - 48,
+    width - horizontalPadding * 2,
     720
   );
 
+  const settingsBackground = isLandscape
+    ? require("../../assets/AdobeStock_2002930874.png")
+    : require("../../assets/AdobeStock_200293087412.png");
+
+
   return (
-    <View style={styles.settingsRoot}>
+    <ImageBackground
+      source={settingsBackground}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View
+        pointerEvents="none"
+        style={styles.BackgroundOverlay}
+      />
+
+      <View style={styles.settingsRoot}>
       <ScrollView
         style={styles.settingsPageScroll}
-        contentContainerStyle={styles.settingsPageScrollContent}
+        contentContainerStyle={[
+          styles.settingsPageScrollContent,
+          isLandscape && styles.settingsScrollLandscape,
+          isTablet && styles.settingsScrollTablet,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View
@@ -44,18 +69,26 @@ export function SettingsScreen({
           ]}
         >
       <View style={styles.settingsHeader}>
-        <Text style={styles.settingsTitle}>
-          {t.settings}
-        </Text>
+      <Text
+        style={[
+          styles.settingsTitle,
+          isLandscape && styles.settingsHeaderLandscape,
+        ]}
+      >
+        {t.settings}
+      </Text>
 
-        <Pressable
-          style={styles.settingsBackBtn}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.settingsBackBtnText}>
-            {t.back}
-          </Text>
-        </Pressable>
+      <Pressable
+        style={[
+          styles.settingsBackBtn,
+          isLandscape && styles.settingsHeaderLandscape,
+        ]}
+        onPress={() => navigation.goBack()}
+      >
+        <Text style={styles.settingsBackBtnText}>
+          {t.back}
+        </Text>
+      </Pressable>
       </View>
       <View style={styles.settingsSection}>
         <Text style={styles.settingsSectionLabel}>
@@ -231,5 +264,6 @@ export function SettingsScreen({
     </View>
     </ScrollView>
     </View>
+</ImageBackground>
   );
 }
