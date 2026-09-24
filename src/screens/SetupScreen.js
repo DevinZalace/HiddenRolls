@@ -9,7 +9,7 @@
 
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View, useWindowDimensions, ImageBackground } from "react-native";
 import { styles } from "../theme/styles";
 import {
   getBluetoothStatus,
@@ -28,10 +28,15 @@ import {
 export function SetupScreen({ navigation, t, language, setLanguage }) {
   // Prevent duplicate readiness checks while permissions are being evaluated.
   const [checkingBluetooth, setCheckingBluetooth] = useState(false);
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+
+  const isLandscape = width > height;
+  const isTablet = Math.min(width, height) >= 600;
+
+  const horizontalPadding = isTablet ? 32 : 24;
 
   const setupContentWidth = Math.min(
-    width - 48,
+    width - horizontalPadding * 2,
     720
   );
 
@@ -97,11 +102,29 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
       setCheckingBluetooth(false);
     }
   }
+
+  const setupBackground = isLandscape
+    ? require("../../assets/AdobeStock_2005453868.png")
+    : require("../../assets/AdobeStock_200545386812.png");
+
   return (
+    <ImageBackground
+          source={setupBackground}
+          style={styles.background}
+          resizeMode="cover"
+        >
+          <View
+            pointerEvents="none"
+            style={styles.BackgroundOverlay}
+          />
     <View style={styles.setupRoot}>
       <ScrollView
         style={styles.setupPageScroll}
-        contentContainerStyle={styles.setupPageScrollContent}
+        contentContainerStyle={[
+          styles.setupPageScrollContent,
+          isLandscape && styles.setupScrollLandscape,
+          isTablet && styles.setupScrollTablet,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View
@@ -124,7 +147,7 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
         </Pressable>
 
         {/* ===== Connection Instructions & Button ===== */}
-        <Text style={styles.sectionLabel}>{t.connectionTitle}</Text>
+        <Text style={styles.setupSectionLabel}>{t.connectionTitle}</Text>
 
         <View style={styles.helpCard}>
           <Text style={styles.helpTitle}>{t.howToConnect}</Text>
@@ -158,5 +181,6 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
     </View>
     </ScrollView>
     </View>
+    </ImageBackground>
   );
 }

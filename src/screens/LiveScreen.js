@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Alert, Platform, Pressable, Text, useWindowDimensions, View, ScrollView } from "react-native";
+import { Alert, Platform, Pressable, Text, useWindowDimensions, View, ScrollView, ImageBackground } from "react-native";
 import Slider from "@react-native-community/slider";
 import { WebView } from "react-native-webview";
 import { CAMERA_CONFIG, buildCameraStreamUrl } from "../../config/camera";
@@ -395,9 +395,7 @@ async function updateCameraFlip() {
     }
 
     return () => {
-      void ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP
-      );
+      void ScreenOrientation.unlockAsync();
 
       if (Platform.OS === "android") {
         void NavigationBar.setVisibilityAsync("visible");
@@ -576,9 +574,12 @@ const esp32StreamUrl =
   buildCameraStreamUrl(cameraHost);
 
   return (
-    <View style={styles.liveRoot}>
+    <ImageBackground
+      source={require("../../assets/AdobeStock_1424312367.png")}
+      style={styles.liveRoot}
+      resizeMode="cover"
+    >
       <StatusBar hidden />
-
       <View style={styles.videoArea}>
         <View
           style={[
@@ -604,7 +605,10 @@ const esp32StreamUrl =
           }
           onError={() => setStreamError(true)}
           onHttpError={() => setStreamError(true)}
-          style={styles.cameraStream}
+          style={[
+            styles.cameraStream,
+            styles.cameraStreamZoom,
+          ]}
         />
 
         {streamError && (
@@ -886,6 +890,6 @@ const esp32StreamUrl =
       </View>
     </View>
   </View>
-</View>
+</ImageBackground>
 );
 }
