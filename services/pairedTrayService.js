@@ -3,6 +3,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const PAIRED_TRAY_STORAGE_KEY =
   "hiddenRolls.pairedTray";
 
+// The paired record contains only reconnectable tray metadata. Wi-Fi
+// credentials and the provisioning proof of possession remain on the tray or
+// in the native provisioning module, not in AsyncStorage.
+
+/** Loads and validates the tray selected for direct access from the app. */
 export async function loadPairedTray() {
   try {
     const storedValue =
@@ -35,6 +40,7 @@ export async function loadPairedTray() {
   }
 }
 
+/** Persists the validated tray metadata used by the live view and discovery. */
 export async function savePairedTray(tray) {
   await AsyncStorage.setItem(
     PAIRED_TRAY_STORAGE_KEY,
@@ -42,6 +48,7 @@ export async function savePairedTray(tray) {
   );
 }
 
+/** Removes the app's pairing without changing the tray's Wi-Fi configuration. */
 export async function forgetPairedTray() {
   await AsyncStorage.removeItem(
     PAIRED_TRAY_STORAGE_KEY

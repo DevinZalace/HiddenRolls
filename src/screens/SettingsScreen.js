@@ -37,8 +37,8 @@ export function SettingsScreen({
   );
 
   const settingsBackground = isLandscape
-    ? require("../../assets/AdobeStock_2002930874.png")
-    : require("../../assets/AdobeStock_200293087412.png");
+    ? require("../../assets/AdobeStock_2002930874.jpg")
+    : require("../../assets/AdobeStock_200293087412.jpg");
 
 
   return (

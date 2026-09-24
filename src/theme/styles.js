@@ -662,7 +662,7 @@ scanCamera: {
 
 settingsRoot: {
   flex: 1,
-  backgroundColor: "Transparent",
+  backgroundColor: "transparent",
 },
 
 settingsHeader: {

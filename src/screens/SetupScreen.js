@@ -104,8 +104,8 @@ export function SetupScreen({ navigation, t, language, setLanguage }) {
   }
 
   const setupBackground = isLandscape
-    ? require("../../assets/AdobeStock_2005453868.png")
-    : require("../../assets/AdobeStock_200545386812.png");
+    ? require("../../assets/AdobeStock_2005453868.jpg")
+    : require("../../assets/AdobeStock_200545386812.jpg");
 
   return (
     <ImageBackground

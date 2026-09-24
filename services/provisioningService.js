@@ -40,6 +40,10 @@ export function getBluetoothStatus() {
 
 let setupCleanupPromise = null;
 
+/**
+ * Stops all native setup work and coalesces simultaneous cleanup requests.
+ * @returns {Promise<void>} Resolves after BLE and provisioning state is cleared
+ */
 export function cancelTraySetup() {
   if (!setupCleanupPromise) {
     setupCleanupPromise = Promise.resolve()

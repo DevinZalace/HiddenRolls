@@ -575,7 +575,7 @@ const esp32StreamUrl =
 
   return (
     <ImageBackground
-      source={require("../../assets/AdobeStock_1424312367.png")}
+      source={require("../../assets/AdobeStock_1424312367.jpg")}
       style={styles.liveRoot}
       resizeMode="cover"
     >

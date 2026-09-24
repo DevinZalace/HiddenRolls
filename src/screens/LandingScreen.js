@@ -87,8 +87,8 @@ export function LandingScreen({
   );
 
   const landingBackground = isLandscape
-    ? require("../../assets/AdobeStock_2180823407.png")
-    : require("../../assets/AdobeStock_218082340712.png");
+    ? require("../../assets/AdobeStock_2180823407.jpg")
+    : require("../../assets/AdobeStock_218082340712.jpg");
 
   const existingTrayAttemptRef = useRef(0);
   const existingTrayAbortRef = useRef(null);
